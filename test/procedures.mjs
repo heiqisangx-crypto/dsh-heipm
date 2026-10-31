@@ -3,8 +3,8 @@ import path from 'node:path'
 import { rmSync } from 'node:fs'
 import { mkdtemp, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { apply, inject, name } from '../procedures.js'
-import { registerCommands } from '../procedures-tools.js'
+import { apply, inject, name } from '../procedures/index.js'
+import { registerCommands } from '../procedures/tools.js'
 
 const sections = []
 const registered = []

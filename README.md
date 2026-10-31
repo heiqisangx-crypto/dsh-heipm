@@ -6,7 +6,7 @@
 
 <p align="center">DSH 项目管理面板：把每个项目的约束、技能、经验流程与任务清单收在一处。</p>
 
-[功能](#功能) · [截图](#截图) · [安装](#安装) · [配置](#配置) · [安全边界](#安全边界) · [开发](#开发) · [License](#license)
+[功能](#功能) · [目录结构](#目录结构) · [截图](#截图) · [安装](#安装) · [配置](#配置) · [安全边界](#安全边界) · [开发](#开发) · [兼容性](#兼容性) · [License](#license)
 
 > 中文 | [English](README.en.md)
 
@@ -20,6 +20,23 @@
 - **工作区右键菜单**：在 DSH 自带侧边栏的工作区行上右键，弹出「重命名 / 删除工作区」，样式沿用插件主题。
 - **Markdown 表格样式**（可选子插件）：给会话里的宽表加圆角、描边与「展开/收起」。
 
+## 目录结构
+
+```text
+index.js                 Host 包入口
+client.js                浏览器主入口（UI 特性注册）
+client.procedures.js     经验流程客户端分块（必须留在包根）
+client.quest.js          任务清单客户端分块（必须留在包根）
+procedures/              经验流程 Host 子插件：index.js / prompt.md / tools.js
+quest-list/              任务清单 Host 子插件：index.js / prompt.md / SKILL.md
+markdown/                Markdown 样式子插件：index.js / styles.js
+templates/               内置知识卡模板与工具
+docs/HOST_CONTRACT.md    DSH 依赖契约、降级开关与升级 checklist
+test/                    零依赖测试
+```
+
+> 浏览器分块必须留在包根且命名为 `client.*.js`，这是 DSH `client-modules` 的硬约束；Host 子插件入口可以放进文件夹。
+
 ## 截图
 
 ![项目管理面板](docs/assets/overview.png)
@@ -30,7 +47,7 @@
 
 ## 安装
 
-要求：DSH `0.2.1-rc.3`（兼容范围见 `package.json` 的 `engines.dsh`），Node `>=22.19`。
+要求：DSH `>=0.2.0-rc.2 <0.2.2-0`（见 `engines.dsh`），Node `>=22.19`。
 本项目**只从 GitHub 分发，未发布 npm**。
 
 1. 克隆到任意目录：
@@ -88,12 +105,18 @@
 npm test
 ```
 
-测试覆盖 Host 侧（收集 / 保存 / 删除 / 初始化 / 任务清单）、客户端渲染、Markdown 表格样式，以及工作区右键菜单的纯逻辑。
+测试覆盖 Host 侧（收集 / 保存 / 删除 / 初始化 / 任务清单）、客户端渲染、Markdown 表格样式、工作区右键菜单，以及 UI 契约与降级开关。
 
 ## 兼容性
 
-- 开发与验收版本：DSH `0.2.1-rc.3`
-- 客户端插件依赖 `slots`、`locale`、`workspaces` 服务；工作区右键菜单依赖侧边栏工作区行的 `data-row-key` 属性。
+- `engines.dsh`：`>=0.2.0-rc.2 <0.2.2-0`；开发与实测版本为 `0.2.1-rc.3`。
+- 客户端插件依赖 `slots`、`locale`、`workspaces` 服务；右键菜单依赖侧边栏工作区行的 `data-row-key`。
+- 所有脆弱依赖集中在 `client.js` 的 `HOST_CONTRACT` 与 [docs/HOST_CONTRACT.md](docs/HOST_CONTRACT.md)；DSH 升级后按该文档逐项核对。
+- 某个 UI 特性异常时可一键关闭，刷新后回到宿主原生行为：
+
+  ```js
+  localStorage.setItem('dsh-heipm:ui:disabled:v1', JSON.stringify(['workspace-menu']))
+  ```
 
 ## License
 

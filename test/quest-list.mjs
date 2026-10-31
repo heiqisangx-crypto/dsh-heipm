@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { apply, inject, name } from '../quest-list.js'
+import { apply, inject, name } from '../quest-list/index.js'
 
 const registered = []
 const sections = []

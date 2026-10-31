@@ -34,14 +34,14 @@
   ],
   "engines": {
     "node": ">=22.19",
-    "dsh": ">=0.2.1-rc.3 <0.3.0"
+    "dsh": ">=0.2.0-rc.2 <0.2.2-0"
   },
   "exports": {
     ".": "./index.js",
-    "./procedures": "./procedures.js",
-    "./procedures/tools": "./procedures-tools.js",
-    "./quest-list": "./quest-list.js",
-    "./markdown": "./markdown/markdown.js",
+    "./procedures": "./procedures/index.js",
+    "./procedures/tools": "./procedures/tools.js",
+    "./quest-list": "./quest-list/index.js",
+    "./markdown": "./markdown/index.js",
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg",
@@ -56,19 +56,19 @@
   },
   "files": [
     "index.js",
-    "procedures.js",
-    "procedures-tools.js",
-    "procedures-prompt.md",
-    "quest-list.js",
-    "quest-list-prompt.md",
-    "quest-list/SKILL.md",
-    "markdown/markdown.js",
-    "markdown/styles.js",
-    "markdown/icon.svg",
-    "markdown/locale/*.json",
     "client.js",
     "client.procedures.js",
     "client.quest.js",
+    "procedures/index.js",
+    "procedures/tools.js",
+    "procedures/prompt.md",
+    "quest-list/index.js",
+    "quest-list/prompt.md",
+    "quest-list/SKILL.md",
+    "markdown/index.js",
+    "markdown/styles.js",
+    "markdown/icon.svg",
+    "markdown/locale/*.json",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
@@ -80,10 +80,11 @@
     "templates/tools/*",
     "README.md",
     "README.en.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/HOST_CONTRACT.md"
   ],
   "scripts": {
-    "test": "node test/smoke.mjs && node test/host.mjs && node test/procedures.mjs && node test/quest-list.mjs && node test/markdown.mjs && node test/workspace-menu.mjs"
+    "test": "node test/smoke.mjs && node test/host.mjs && node test/procedures.mjs && node test/quest-list.mjs && node test/markdown.mjs && node test/workspace-menu.mjs && node test/ui-contract.mjs"
   },
   "dsh": {
     "bundle": {

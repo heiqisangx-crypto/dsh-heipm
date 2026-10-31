@@ -6,11 +6,11 @@ export const inject = ['skills', 'systemPrompt']
 
 const SECTION_NAME = 'heipm:quest-list'
 const SECTION_ORDER = 8990
-const PROMPT_TEXT = readFileSync(new URL('./quest-list-prompt.md', import.meta.url), 'utf8').trim()
+const PROMPT_TEXT = readFileSync(new URL('./prompt.md', import.meta.url), 'utf8').trim()
 
-const SKILL_DIR = new URL('./quest-list/', import.meta.url)
+const SKILL_DIR = new URL('./', import.meta.url)
 const SKILL_PATH = fileURLToPath(SKILL_DIR).replace(/[\\/]$/, '')
-const SKILL_DOC = readFileSync(new URL('./SKILL.md', SKILL_DIR), 'utf8')
+const SKILL_DOC = readFileSync(new URL('./SKILL.md', import.meta.url), 'utf8')
 
 function parseSkillDocument(text) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text)

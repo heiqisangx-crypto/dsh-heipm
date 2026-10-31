@@ -4,7 +4,7 @@ import { readdirSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-const TOOLS_DIR = fileURLToPath(new URL('./templates/tools/', import.meta.url)).replace(/[\\/]$/, '')
+const TOOLS_DIR = fileURLToPath(new URL('../templates/tools/', import.meta.url)).replace(/[\\/]$/, '')
 const toolPath = name => path.join(TOOLS_DIR, name)
 
 const COMMAND_TIMEOUT_MS = 60_000

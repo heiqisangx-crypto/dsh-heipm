@@ -529,7 +529,7 @@ window.__ModuleLoader__.load({
         .pm-col.main { min-height: 46vh; }
         .pm-resizer { display: none; }
       }
-        /* knowledge procedures styles ship inside client.procedures.js */
+        /* knowledge procedures styles ship inside procedures/client.js */
     `
 
     function apiUrl() {
@@ -1496,9 +1496,29 @@ window.__ModuleLoader__.load({
       return id || null
     }
 
+    /* Fragile DSH DOM couplings live here. Update docs/HOST_CONTRACT.md with any change. */
+    const HOST_CONTRACT = {
+      workspaceRow: '[data-row-key^="workspace:"]',
+      workspaceTitle: '[class*="projectText"] [class*="title"]',
+    }
+
+    const UI_DISABLED_KEY = 'dsh-heipm:ui:disabled:v1'
+
+    function uiFeatureDisabled(id) {
+      if (typeof window === 'undefined' || !window.localStorage) return false
+      try {
+        const raw = window.localStorage.getItem(UI_DISABLED_KEY)
+        if (!raw) return false
+        const disabled = JSON.parse(raw)
+        return Array.isArray(disabled) && disabled.includes(id)
+      } catch {
+        return false
+      }
+    }
+
     function workspaceRowId(target) {
       if (!target || typeof target.closest !== 'function') return null
-      const row = target.closest('[data-row-key^="workspace:"]')
+      const row = target.closest(HOST_CONTRACT.workspaceRow)
       if (!row || typeof row.getAttribute !== 'function') return null
       return workspaceKeyId(row.getAttribute('data-row-key'))
     }
@@ -1806,7 +1826,7 @@ window.__ModuleLoader__.load({
 
       const rowTitle = row => {
         try {
-          const title = row.querySelector('[class*="projectText"] [class*="title"]')
+          const title = row.querySelector(HOST_CONTRACT.workspaceTitle)
           if (title && title.textContent) return String(title.textContent).trim()
           return String(row.textContent || '').trim()
         } catch {
@@ -1819,7 +1839,7 @@ window.__ModuleLoader__.load({
         const target = event.target
         if (!target || typeof target.closest !== 'function') return
         if (target.closest('.pm-ctx, .pm-ctx-overlay')) return
-        const row = target.closest('[data-row-key^="workspace:"]')
+        const row = target.closest(HOST_CONTRACT.workspaceRow)
         const id = row ? workspaceKeyId(row.getAttribute('data-row-key')) : null
         if (menu) closeMenu()
         if (!id) return
@@ -1834,6 +1854,28 @@ window.__ModuleLoader__.load({
         closeDialog()
         doc.removeEventListener('contextmenu', onContextMenu, true)
         stopStyles()
+      }
+    }
+
+    const UI_FEATURES = [
+      {
+        id: 'workspace-menu',
+        mount: (workspaces, t) => installWorkspaceContextMenu(workspaces, t),
+      },
+    ]
+
+    /* One failing feature must not take the rest of the client down. */
+    function installClientFeatures(ctx, workspaces, t) {
+      for (const feature of UI_FEATURES) {
+        if (uiFeatureDisabled(feature.id)) {
+          console.info(`[dsh-heipm] UI feature "${feature.id}" disabled by ${UI_DISABLED_KEY}`)
+          continue
+        }
+        try {
+          ctx.effect(() => feature.mount(workspaces, t), `dsh-heipm: ui:${feature.id}`)
+        } catch (error) {
+          console.error(`[dsh-heipm] UI feature "${feature.id}" skipped`, error)
+        }
       }
     }
 
@@ -2564,7 +2606,7 @@ window.__ModuleLoader__.load({
       const workspaces = typeof ctx.get === 'function' ? ctx.get('workspaces') : null
       ensureProcedures({ locale, registerLocale: dispose => disposers.push(dispose) })
       ensureQuest({ locale, registerLocale: dispose => disposers.push(dispose) })
-      ctx.effect(() => installWorkspaceContextMenu(workspaces, t), 'dsh-heipm: workspace context menu')
+      installClientFeatures(ctx, workspaces, t)
       ctx.effect(startMarkdownStyling, 'dsh-heipm: session markdown styling')
       ctx.effect(() => () => {
         for (const dispose of disposers) {
@@ -2593,6 +2635,8 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'workspaces'],
       apply,
       __test: {
+        HOST_CONTRACT,
+        uiFeatureDisabled,
         workspaceKeyId,
         workspaceRowId,
         normalizeWorkspaceTitle,

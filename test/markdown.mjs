@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
-import { name } from '../markdown/markdown.js'
+import { name } from '../markdown/index.js'
 import STYLES from '../markdown/styles.js'
 
 const ENTRY_SOURCE = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
@@ -14,7 +14,7 @@ const ICON = readFileSync(new URL('../markdown/icon.svg', import.meta.url), 'utf
 assert.equal(name, 'heipm-markdown')
 assert.match(PATCH, /- id: dsh-heipm-markdown\n\s+name: 'dsh-heipm\/markdown'\n\s+disabled: true/,
   'markdown sub-plugin must be listed and disabled by default')
-assert.equal(PKG.exports['./markdown'], './markdown/markdown.js')
+assert.equal(PKG.exports['./markdown'], './markdown/index.js')
 assert.equal(PKG.exports['./markdown/icon'], './markdown/icon.svg', 'plugin metadata only accepts real image files')
 assert.ok(!PKG.files.some(file => file.endsWith('.css')), 'the host only serves .js, so no .css may be shipped')
 assert.ok(!PKG.files.some(file => file.includes('client.markdown')), 'no markdown chunk is left behind')

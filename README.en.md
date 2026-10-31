@@ -6,7 +6,7 @@
 
 <p align="center">A DSH project manager: constraints, skills, procedures and quest lists in one panel.</p>
 
-[Features](#features) · [Screenshots](#screenshots) · [Install](#install) · [Configuration](#configuration) · [Security](#security) · [Development](#development) · [License](#license)
+[Features](#features) · [Layout](#layout) · [Screenshots](#screenshots) · [Install](#install) · [Configuration](#configuration) · [Security](#security) · [Development](#development) · [Compatibility](#compatibility) · [License](#license)
 
 > [中文](README.md) | English
 
@@ -20,6 +20,23 @@
 - **Workspace context menu**: right-click a workspace row in the built-in DSH sidebar to rename it or remove its registration, using the plugin theme.
 - **Markdown table styling** (optional sub-plugin): rounded, outlined wide tables with an expand/collapse toggle.
 
+## Layout
+
+```text
+index.js                 Host package entry
+client.js                Browser entry (UI feature registry)
+client.procedures.js     Procedures client chunk (must stay at the package root)
+client.quest.js          Quest-list client chunk (must stay at the package root)
+procedures/              Procedures host sub-plugin: index.js / prompt.md / tools.js
+quest-list/              Quest-list host sub-plugin: index.js / prompt.md / SKILL.md
+markdown/                Markdown styling sub-plugin: index.js / styles.js
+templates/               Built-in card templates and tools
+docs/HOST_CONTRACT.md    DSH dependency contract, kill switch and upgrade checklist
+test/                    Dependency-free tests
+```
+
+> Browser chunks must stay at the package root and be named `client.*.js`; that is a hard constraint of DSH `client-modules`. Host sub-plugin entries may live in folders.
+
 ## Screenshots
 
 ![Project manager](docs/assets/overview.png)
@@ -30,7 +47,7 @@
 
 ## Install
 
-Requires DSH `0.2.1-rc.3` (see `engines.dsh` in `package.json`) and Node `>=22.19`.
+Requires DSH `>=0.2.0-rc.2 <0.2.2-0` (see `engines.dsh`) and Node `>=22.19`.
 This project is distributed **from GitHub only; it is not published to npm**.
 
 1. Clone it anywhere:
@@ -90,8 +107,14 @@ npm test
 
 ## Compatibility
 
-- Developed and verified on DSH `0.2.1-rc.3`.
+- `engines.dsh`: `>=0.2.0-rc.2 <0.2.2-0`; developed and verified on `0.2.1-rc.3`.
 - The client plugin depends on the `slots`, `locale` and `workspaces` services; the context menu relies on the sidebar's `data-row-key` attribute.
+- Every fragile dependency lives in `HOST_CONTRACT` in `client.js` and in [docs/HOST_CONTRACT.md](docs/HOST_CONTRACT.md). Re-check that document after each DSH upgrade.
+- A broken UI feature can be disabled and falls back to native behaviour after a refresh:
+
+  ```js
+  localStorage.setItem('dsh-heipm:ui:disabled:v1', JSON.stringify(['workspace-menu']))
+  ```
 
 ## License
 
