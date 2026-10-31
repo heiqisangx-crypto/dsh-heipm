@@ -15,7 +15,7 @@
 - **Projects**: reads the DSH workspace registry and supports subsequence fuzzy search (`/` focuses, `Esc` clears).
 - **Constraints**: read and edit project/global `AGENTS.md` and `AGENTS.local.md` with version checks (409 on conflict) and a path whitelist.
 - **Skills**: lists `.dsh/skills`, `skills/` and `.agents/skills` entries with names and descriptions.
-- **Procedures**: shows knowledge cards under `.dsh/dsh-heipm/procedures/`, with built-in index/template/tools scaffolds.
+- **Procedures**: shows knowledge cards under `.dsh/dsh-heipm/procedures/`, with built-in index/template/tools scaffolds; templates that drifted from the plugin copy are flagged as out of date and can be updated one by one or all at once (confirmation first).
 - **Quest list**: parses `.dsh/dsh-heipm/任务清单.md` and cycles subtask states when ticked.
 - **Workspace context menu**: right-click a workspace row in the built-in DSH sidebar to rename it or remove its registration, using the plugin theme.
 - **Markdown table styling** (optional sub-plugin): rounded, outlined wide tables with an expand/collapse toggle.

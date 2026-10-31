@@ -251,6 +251,60 @@ try {
     numbered.items[0].children.length === 1, JSON.stringify(numbered.items[0].children.length))
   check('numbered requirement keeps its own subtask',
     numbered.items[1].children.length === 1, JSON.stringify(numbered.items[1].children.length))
+  const freshTemplates = (await __test.collect(ctx, null)).projects[0].inventory.procedures.templates
+  check('scaffolded templates report in sync', freshTemplates.every(entry => entry.inSync === true),
+    JSON.stringify(freshTemplates.map(entry => [entry.name, entry.inSync])))
+
+  const proceduresRoot = path.join(workspace, '.dsh', 'dsh-heipm', 'procedures')
+  const cardPath = path.join(proceduresRoot, 'card-template.md')
+  const cardSource = await readFile(cardPath, 'utf8')
+  await writeFile(cardPath, cardSource.replace(/\n/g, '\r\n'), 'utf8')
+  const crlfTemplates = (await __test.collect(ctx, null)).projects[0].inventory.procedures.templates
+  check('line endings are ignored when comparing',
+    crlfTemplates.every(entry => entry.inSync === true),
+    JSON.stringify(crlfTemplates.map(entry => [entry.name, entry.inSync])))
+
+  const classifyPath = path.join(proceduresRoot, 'CLASSIFY.md')
+  await writeFile(classifyPath, (await readFile(classifyPath, 'utf8')) + '\nextra line\n', 'utf8')
+  const driftMap = Object.fromEntries(
+    (await __test.collect(ctx, null)).projects[0].inventory.procedures.templates
+      .map(entry => [entry.name, entry.inSync]))
+  check('a local edit is reported out of date', driftMap['CLASSIFY.md'] === false, JSON.stringify(driftMap))
+  check('untouched templates stay in sync', driftMap['card-template.md'] === true, JSON.stringify(driftMap))
+
+  const synced = await __test.syncTemplates(ctx, { projectPath: workspace, files: ['CLASSIFY.md'] })
+  check('sync updates the drifted template', synced.updated.length === 1, JSON.stringify(synced))
+  check('sync restores the plugin content',
+    (await readFile(classifyPath, 'utf8')) === await readFile(new URL('../templates/CLASSIFY.md', import.meta.url), 'utf8'))
+  check('sync reports the template as in sync afterwards',
+    (await __test.collect(ctx, null)).projects[0].inventory.procedures.templates
+      .find(entry => entry.name === 'CLASSIFY.md').inSync === true)
+  check('sync is a no-op when already current',
+    (await __test.syncTemplates(ctx, { projectPath: workspace, files: ['CLASSIFY.md'] })).updated.length === 0)
+
+  let unknownSync = false
+  try {
+    await __test.syncTemplates(ctx, { projectPath: workspace, files: ['nope.md'] })
+  } catch (error) {
+    unknownSync = error && error.statusCode === 400
+  }
+  check('sync rejects an unknown template', unknownSync)
+
+  let emptySync = false
+  try {
+    await __test.syncTemplates(ctx, { projectPath: workspace, files: [] })
+  } catch (error) {
+    emptySync = error && error.statusCode === 400
+  }
+  check('sync requires at least one template name', emptySync)
+
+  let foreignSync = false
+  try {
+    await __test.syncTemplates(ctx, { projectPath: path.join(workspace, '..', 'nope'), files: ['CLASSIFY.md'] })
+  } catch (error) {
+    foreignSync = error && error.statusCode === 400
+  }
+  check('sync rejects an unknown project', foreignSync)
 } finally {
   await rm(workspace, { recursive: true, force: true }).catch(() => {})
 }

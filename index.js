@@ -1,7 +1,7 @@
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { access, mkdir, readFile, unlink } from 'node:fs/promises'
+import { mkdir, readFile, unlink } from 'node:fs/promises'
 
 const ROUTE = '/dsh-heipm/api'
 const MAX_BODY_BYTES = 1_000_000
@@ -57,6 +57,7 @@ export const __test = {
   save,
   remove,
   scaffold,
+  syncTemplates,
   handle,
   migrateProcedures,
   listProcedureInventory,
@@ -107,6 +108,11 @@ async function handle(ctx, req, res) {
     if (payload.action === 'scaffold') {
       const created = await scaffold(ctx, payload)
       send(res, 200, { ok: true, ...created })
+      return
+    }
+    if (payload.action === 'sync-templates') {
+      const synced = await syncTemplates(ctx, payload)
+      send(res, 200, { ok: true, ...synced })
       return
     }
     if (payload.action === 'migrate') {
@@ -576,14 +582,23 @@ async function listProcedureInventory(ctx, projectPath) {
   const templates = []
   for (const meta of PROCEDURE_TEMPLATES) {
     const target = path.join(projectPath, ...meta.dest.split('/'))
+    const name = path.basename(target)
+    const exists = ownNames.has(name.toLowerCase())
+    const builtIn = await readBuiltInFile(meta.name)
+    const local = exists
+      ? await readInstructionFile(fs, target, name, relativeDisplay(projectPath, target), false)
+      : null
     templates.push({
-      name: path.basename(target),
+      name,
       role: meta.role,
       label: meta.label,
       path: target,
       displayPath: shortPath(target),
-      exists: ownNames.has(path.basename(target).toLowerCase()),
-      builtIn: await hasBuiltInFile(meta.name),
+      exists,
+      builtIn: builtIn !== null,
+      inSync: exists && builtIn !== null && local && !local.tooLarge && typeof local.content === 'string'
+        ? normalizeTemplate(local.content) === normalizeTemplate(builtIn)
+        : null,
     })
   }
 
@@ -598,13 +613,8 @@ async function listProcedureInventory(ctx, projectPath) {
   }
 }
 
-async function hasBuiltInFile(...parts) {
-  try {
-    await access(path.join(TEMPLATE_DIR, ...parts))
-    return true
-  } catch {
-    return false
-  }
+function normalizeTemplate(text) {
+  return String(text).replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '').replace(/\n+$/, '')
 }
 
 async function readBuiltInFile(...parts) {
@@ -728,6 +738,56 @@ async function scaffold(ctx, payload) {
   }
 
   return { dir: projectPath, created, skipped }
+}
+
+async function syncTemplates(ctx, payload) {
+  const fs = ctx.get('fs')
+  if (!fs) throw new Error('Filesystem service is unavailable')
+  const projectPath = knownProjectPath(ctx, payload.projectPath)
+  const requested = Array.isArray(payload.files) ? payload.files : []
+  if (!requested.length) {
+    const error = new Error('Missing template names')
+    error.statusCode = 400
+    throw error
+  }
+  const catalog = scaffoldCatalog()
+
+  const updated = []
+  const skipped = []
+
+  for (const raw of requested) {
+    const entry = catalog.find(item => item.name === raw)
+    if (!entry) {
+      const error = new Error(`Unknown template: ${String(raw)}`)
+      error.statusCode = 400
+      throw error
+    }
+    const filePath = path.join(projectPath, ...entry.dest.split('/'))
+    const target = await fs.resolve(filePath)
+    const current = await fs.stat(target)
+    if (!current || current.type !== 'file') {
+      skipped.push(entry.name)
+      continue
+    }
+    const content = await readBuiltInFile(...entry.source)
+    if (content === null) {
+      const error = new Error(`Built-in template is missing: ${entry.name}`)
+      error.statusCode = 500
+      throw error
+    }
+    const local = await fs.readText(target)
+    if (normalizeTemplate(local) === normalizeTemplate(content)) {
+      skipped.push(entry.name)
+      continue
+    }
+    await fs.writeText(target, content, {
+      kind: 'replaceIfVersion',
+      version: String(current.version),
+    }, undefined, writePolicy(ctx, filePath))
+    updated.push({ name: entry.name, path: filePath })
+  }
+
+  return { dir: projectPath, updated, skipped }
 }
 
 function knownProjectPath(ctx, value) {

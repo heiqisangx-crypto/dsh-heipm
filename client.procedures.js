@@ -145,6 +145,13 @@ window.__ModuleLoader__.load({
       'procedures.templates.createAll': 'Create missing files',
       'procedures.templates.created': 'Created',
       'procedures.templates.failed': 'Could not create',
+      'procedures.templates.stale': 'out of date',
+      'procedures.templates.update': 'Update',
+      'procedures.templates.updating': 'Updating…',
+      'procedures.templates.updateAll': 'Update out-of-date files',
+      'procedures.templates.updated': 'Updated',
+      'procedures.templates.syncFailed': 'Could not update',
+      'procedures.templates.confirmUpdate': 'Overwrite these files with the plugin templates?',
       'procedures.legacy.title': 'Legacy procedures/',
       'procedures.legacy.desc': 'Files still sit in ',
       'procedures.legacy.source': 'procedures/',
@@ -178,6 +185,13 @@ window.__ModuleLoader__.load({
       'procedures.templates.createAll': '创建缺失文件',
       'procedures.templates.created': '已创建',
       'procedures.templates.failed': '创建失败',
+      'procedures.templates.stale': '有更新',
+      'procedures.templates.update': '更新',
+      'procedures.templates.updating': '更新中…',
+      'procedures.templates.updateAll': '更新过期的模板',
+      'procedures.templates.updated': '已更新',
+      'procedures.templates.syncFailed': '更新失败',
+      'procedures.templates.confirmUpdate': '确认用插件内置模板覆盖这些文件？',
       'procedures.legacy.title': '老目录 procedures/',
       'procedures.legacy.desc': '这些卡片仍在项目根目录的 ',
       'procedures.legacy.source': 'procedures/',
@@ -351,6 +365,7 @@ window.__ModuleLoader__.load({
       const legacyKeys = new Set(legacy.map(entry => entry.path))
       const extras = items.filter(item => item.role === 'meta' && !legacyKeys.has(item.path))
       const missing = templates.filter(entry => !entry.exists)
+      const stale = templates.filter(entry => entry.exists && entry.inSync === false)
       const [busy, setBusy] = useState(null)
       const [notice, setNotice] = useState(null)
       const procedureDir = templates.length ? dirOf(templates[0].displayPath) : 'procedures'
@@ -374,6 +389,26 @@ window.__ModuleLoader__.load({
         } catch (error) {
           const message = error && error.message ? error.message : ''
           setNotice({ kind: 'error', text: `${t('procedures.templates.failed')}: ${message}`.trim() })
+        } finally {
+          setBusy(null)
+        }
+      }
+
+      async function updateFiles(files, key) {
+        if (busy || !project || !project.path || !files.length) return
+        const listed = files.join('\n')
+        if (!window.confirm(`${t('procedures.templates.confirmUpdate')}\n${listed}`)) return
+        setBusy(key)
+        setNotice(null)
+        try {
+          const result = await api({ action: 'sync-templates', projectPath: project.path, files })
+          const count = result && Array.isArray(result.updated) ? result.updated.length : 0
+          const skipped = result && Array.isArray(result.skipped) ? result.skipped.length : 0
+          setNotice({ kind: 'success', text: `${t('procedures.templates.updated')} ${count}${skipped ? ` · ${t('doc.skipped')} ${skipped}` : ''}` })
+          if (onReload) onReload()
+        } catch (error) {
+          const message = error && error.message ? error.message : ''
+          setNotice({ kind: 'error', text: `${t('procedures.templates.syncFailed')}: ${message}`.trim() })
         } finally {
           setBusy(null)
         }
@@ -407,6 +442,27 @@ window.__ModuleLoader__.load({
       }
 
       function row(item, key, exists) {
+        const side = []
+        if (!exists) {
+          side.push(h('button', {
+            key: 'create',
+            type: 'button',
+            className: 'pm-btn sm',
+            disabled: busy !== null,
+            onClick: () => createFiles([item.name], `${key}:${item.name}`),
+          }, busy === `${key}:${item.name}` ? t('procedures.templates.creating') : t('procedures.templates.create')))
+        } else if (item.inSync === false) {
+          side.push(h(Badge, { key: 'stale', on: false }, t('procedures.templates.stale')))
+          side.push(h('button', {
+            key: 'update',
+            type: 'button',
+            className: 'pm-btn sm',
+            disabled: busy !== null,
+            onClick: () => updateFiles([item.name], `${key}:${item.name}`),
+          }, busy === `${key}:${item.name}` ? t('procedures.templates.updating') : t('procedures.templates.update')))
+        } else {
+          side.push(h(Badge, { key: 'exists', on: true }, t('doc.exists')))
+        }
         return h('li', { key },
           h('div', { className: 'pm-row static' },
             h('span', { className: `pm-dot${exists ? ' on' : ''}` }),
@@ -414,14 +470,7 @@ window.__ModuleLoader__.load({
               h('span', { className: 'pm-row-title' }, item.label ? `${item.label} · ${item.name}` : item.name),
               h('span', { className: 'pm-row-path', title: item.displayPath }, item.displayPath),
             ),
-            exists
-              ? h(Badge, { on: true }, t('doc.exists'))
-              : h('button', {
-                  type: 'button',
-                  className: 'pm-btn sm',
-                  disabled: busy !== null,
-                  onClick: () => createFiles([item.name], `${key}:${item.name}`),
-                }, busy === `${key}:${item.name}` ? t('procedures.templates.creating') : t('procedures.templates.create')),
+            ...side,
           ),
         )
       }
@@ -430,10 +479,15 @@ window.__ModuleLoader__.load({
         h('div', { className: 'pm-setup-block' },
           h('div', { className: 'pm-card-title' },
             t('procedures.templates.title'),
-            h(Badge, { on: missing.length === 0 }, missing.length ? `${missing.length} ${t('doc.missing')}` : t('procedures.templates.ok')),
+            h(Badge, { on: missing.length === 0 && stale.length === 0 },
+              missing.length
+                ? `${missing.length} ${t('doc.missing')}`
+                : stale.length
+                  ? `${stale.length} ${t('procedures.templates.stale')}`
+                  : t('procedures.templates.ok')),
           ),
           h('div', { className: 'pm-card-body' }, t('procedures.templates.desc'), h('code', { className: 'pm-setup-dir' }, procedureDir), t('procedures.templates.descTail')),
-          h('ul', { className: 'pm-list' }, templates.map(entry => row({ name: entry.name, label: entry.label, displayPath: entry.displayPath }, 'tpl', entry.exists))),
+          h('ul', { className: 'pm-list' }, templates.map(entry => row({ name: entry.name, label: entry.label, displayPath: entry.displayPath, inSync: entry.inSync }, 'tpl', entry.exists))),
           missing.length
             ? h('button', {
                 type: 'button',
@@ -441,6 +495,14 @@ window.__ModuleLoader__.load({
                 disabled: busy !== null,
                 onClick: () => createFiles(missing.map(entry => entry.name), 'tpl:all'),
               }, busy === 'tpl:all' ? t('procedures.templates.creating') : t('procedures.templates.createAll'))
+            : null,
+          stale.length
+            ? h('button', {
+                type: 'button',
+                className: 'pm-btn sm',
+                disabled: busy !== null,
+                onClick: () => updateFiles(stale.map(entry => entry.name), 'tpl:update-all'),
+              }, busy === 'tpl:update-all' ? t('procedures.templates.updating') : t('procedures.templates.updateAll'))
             : null,
         ), legacy.length
             ? h('div', { className: 'pm-setup-block legacy' },
