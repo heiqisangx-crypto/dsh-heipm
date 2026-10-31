@@ -1,0 +1,12 @@
+- insert:
+    - id: dsh-heipm
+      name: 'dsh-heipm'
+    - id: dsh-heipm-procedures
+      name: 'dsh-heipm/procedures'
+      disabled: true
+    - id: dsh-heipm-quest-list
+      name: 'dsh-heipm/quest-list'
+      disabled: false
+    - id: dsh-heipm-markdown
+      name: 'dsh-heipm/markdown'
+      disabled: true

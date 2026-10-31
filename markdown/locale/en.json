@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session Markdown Style",
+    "description": "Off by default: when enabled it restyles conversation tables and adds a full-width expand/collapse button to clipped tables. Refresh the page to apply. If styles linger after switching this sub-plugin off, restart DSH to stop them entirely."
+  }
+}

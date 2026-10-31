@@ -1,0 +1,97 @@
+{
+  "name": "dsh-heipm",
+  "version": "0.12.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.js",
+  "description": "DSH 项目管理面板：按项目浏览并管理约束、技能、经验流程与任务清单，配套经验流程提示词、quest-list 技能与 Markdown 表格样式。 · DSH project manager panel for constraints, skills, procedures and quest lists.",
+  "license": "MIT",
+  "author": "heiqisang (https://github.com/heiqisangx-crypto)",
+  "homepage": "https://github.com/heiqisangx-crypto/dsh-heipm#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heiqisangx-crypto/dsh-heipm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/heiqisangx-crypto/dsh-heipm/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "project-manager",
+    "constraints",
+    "skills",
+    "procedures",
+    "quest-list",
+    "task-list",
+    "markdown",
+    "项目管理",
+    "约束",
+    "技能",
+    "经验流程",
+    "任务清单"
+  ],
+  "engines": {
+    "node": ">=22.19",
+    "dsh": ">=0.2.1-rc.3 <0.3.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./procedures": "./procedures.js",
+    "./procedures/tools": "./procedures-tools.js",
+    "./quest-list": "./quest-list.js",
+    "./markdown": "./markdown/markdown.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./procedures/locale/*.json": "./procedures/locale/*.json",
+    "./procedures/icon": "./procedures/icon.svg",
+    "./quest-list/locale/*.json": "./quest-list/locale/*.json",
+    "./quest-list/icon": "./quest-list/icon.svg",
+    "./markdown/locale/*.json": "./markdown/locale/*.json",
+    "./markdown/icon": "./markdown/icon.svg",
+    "./markdown/styles": "./markdown/styles.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "procedures.js",
+    "procedures-tools.js",
+    "procedures-prompt.md",
+    "quest-list.js",
+    "quest-list-prompt.md",
+    "quest-list/SKILL.md",
+    "markdown/markdown.js",
+    "markdown/styles.js",
+    "markdown/icon.svg",
+    "markdown/locale/*.json",
+    "client.js",
+    "client.procedures.js",
+    "client.quest.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "procedures/locale/*.json",
+    "procedures/icon.svg",
+    "quest-list/locale/*.json",
+    "quest-list/icon.svg",
+    "templates/*.md",
+    "templates/tools/*",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/smoke.mjs && node test/host.mjs && node test/procedures.mjs && node test/quest-list.mjs && node test/markdown.mjs && node test/workspace-menu.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Procedures Prompt",
+    "description": "Injects the knowledge-card workflow (search, record, wrap up) into every session as a fixed prompt section."
+  }
+}

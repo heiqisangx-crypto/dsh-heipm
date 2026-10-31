@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Quest List Skill",
+    "description": "Registers the quest-list workflow as a discoverable, lazily loaded runtime skill."
+  }
+}
