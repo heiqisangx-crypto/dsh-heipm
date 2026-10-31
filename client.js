@@ -68,6 +68,7 @@ window.__ModuleLoader__.load({
       'editor.unsavedHint': 'Press Ctrl+S to save',
       'confirm.discard': 'Discard unsaved changes?',
       'confirm.delete': 'Delete this constraint file? This cannot be undone.',
+      'ctx.open': 'Open project root',
       'ctx.rename': 'Rename',
       'ctx.delete': 'Delete workspace',
       'ctx.renameTitle': 'Rename workspace',
@@ -84,6 +85,7 @@ window.__ModuleLoader__.load({
       'ctx.error.conflict': 'Another workspace already uses that name.',
       'ctx.error.rename': 'Could not rename this workspace.',
       'ctx.error.delete': 'Could not delete this workspace.',
+      'ctx.error.open': 'Could not open this project root.',
       'section.constraints.title': 'Constraints',
       'section.constraints.desc': 'AGENTS.md files that guide every session in this project.',
       'section.skills.title': 'Skills',
@@ -162,6 +164,7 @@ window.__ModuleLoader__.load({
       'editor.unsavedHint': '按 Ctrl+S 保存',
       'confirm.discard': '放弃未保存的修改？',
       'confirm.delete': '删除这个约束文件？此操作不可撤销。',
+      'ctx.open': '打开项目根目录',
       'ctx.rename': '重命名',
       'ctx.delete': '删除工作区',
       'ctx.renameTitle': '重命名工作区',
@@ -178,6 +181,7 @@ window.__ModuleLoader__.load({
       'ctx.error.conflict': '该名称已被其他工作区使用。',
       'ctx.error.rename': '重命名失败，请重试。',
       'ctx.error.delete': '删除失败，请重试。',
+      'ctx.error.open': '打开项目根目录失败，请重试。',
       'section.constraints.title': '约束',
       'section.constraints.desc': '指导该项目每个会话的 AGENTS.md 文件。',
       'section.skills.title': '技能',
@@ -1359,6 +1363,7 @@ window.__ModuleLoader__.load({
         -webkit-backdrop-filter: blur(10px);
         backdrop-filter: blur(10px);
       }
+      .pm-ctx:focus { outline: none; }
       .pm-ctx-item {
         display: flex;
         align-items: center;
@@ -1482,9 +1487,27 @@ window.__ModuleLoader__.load({
         color: var(--pm-ctx-danger-ink);
       }
       .pm-ctx-btn.danger:hover:not(:disabled) { border-color: transparent; color: var(--pm-ctx-danger-ink); }
+      .pm-ctx-toast {
+        position: fixed;
+        left: 50%;
+        bottom: 32px;
+        z-index: 2147483000;
+        transform: translateX(-50%);
+        max-width: min(360px, 90vw);
+        padding: 8px 14px;
+        border: 1px solid var(--pm-ctx-line);
+        border-radius: 999px;
+        background: var(--pm-ctx-surface);
+        color: var(--pm-ctx-ink);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+        font-size: 12.5px;
+        line-height: 1.5;
+        pointer-events: none;
+      }
     `
 
     const WS_CTX_ICON = {
+      open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>',
       rename: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
       delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
     }
@@ -1603,6 +1626,25 @@ window.__ModuleLoader__.load({
         lastFocus = null
         if (focus && typeof focus.focus === 'function') {
           try { focus.focus() } catch {}
+        }
+      }
+
+      const showToast = message => {
+        const node = create('div', 'pm-ctx-toast', message)
+        node.setAttribute('role', 'status')
+        doc.body.appendChild(node)
+        if (win && typeof win.setTimeout === 'function') {
+          win.setTimeout(() => {
+            if (node.parentNode) node.parentNode.removeChild(node)
+          }, 2600)
+        }
+      }
+
+      const openFolder = async id => {
+        try {
+          await api({ action: 'open-folder', workspaceId: id })
+        } catch {
+          showToast(t('ctx.error.open'))
         }
       }
 
@@ -1766,6 +1808,11 @@ window.__ModuleLoader__.load({
         const title = workspaceTitleOf(workspaces, id) || fallbackTitle || ''
         const node = create('div', 'pm-ctx')
         node.setAttribute('role', 'menu')
+        node.setAttribute('tabindex', '-1')
+        node.appendChild(menuItem('open', t('ctx.open'), false, () => {
+          closeMenu()
+          openFolder(id)
+        }))
         node.appendChild(menuItem('rename', t('ctx.rename'), false, () => {
           closeMenu()
           openRename(id, title)
@@ -1820,8 +1867,7 @@ window.__ModuleLoader__.load({
           win.removeEventListener('scroll', onDismiss, true)
           win.removeEventListener('blur', onDismiss)
         }
-        const first = node.querySelector('.pm-ctx-item')
-        if (first && typeof first.focus === 'function') first.focus()
+        if (typeof node.focus === 'function') node.focus()
       }
 
       const rowTitle = row => {
@@ -2635,6 +2681,7 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'workspaces'],
       apply,
       __test: {
+        installWorkspaceContextMenu,
         HOST_CONTRACT,
         uiFeatureDisabled,
         workspaceKeyId,

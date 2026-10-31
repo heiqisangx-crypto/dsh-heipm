@@ -1,6 +1,6 @@
 {
   "name": "dsh-heipm",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "type": "module",
   "main": "./index.js",
@@ -84,7 +84,7 @@
     "docs/HOST_CONTRACT.md"
   ],
   "scripts": {
-    "test": "node test/smoke.mjs && node test/host.mjs && node test/procedures.mjs && node test/quest-list.mjs && node test/markdown.mjs && node test/workspace-menu.mjs && node test/ui-contract.mjs"
+    "test": "node test/smoke.mjs && node test/host.mjs && node test/procedures.mjs && node test/quest-list.mjs && node test/markdown.mjs && node test/workspace-menu.mjs && node test/workspace-open.mjs && node test/open-folder.mjs && node test/open-folder-route.mjs && node test/ui-contract.mjs"
   },
   "dsh": {
     "bundle": {

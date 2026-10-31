@@ -1,7 +1,8 @@
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { mkdir, readFile, unlink } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import { mkdir, readFile, stat, unlink } from 'node:fs/promises'
 
 const ROUTE = '/dsh-heipm/api'
 const MAX_BODY_BYTES = 1_000_000
@@ -53,6 +54,9 @@ export function apply(ctx) {
  * they take a ctx-like object so a test can supply a stub filesystem.
  */
 export const __test = {
+  openWorkspaceFolder,
+  folderCommand,
+  workspaceEntry,
   collect,
   save,
   remove,
@@ -118,6 +122,11 @@ async function handle(ctx, req, res) {
     if (payload.action === 'migrate') {
       const migrated = await migrateProcedures(ctx, payload)
       send(res, 200, { ok: true, ...migrated })
+      return
+    }
+    if (payload.action === 'open-folder') {
+      const opened = await openWorkspaceFolder(ctx, payload.workspaceId)
+      send(res, 200, { ok: true, ...opened })
       return
     }
     if (payload.action === 'markdown') {
@@ -286,6 +295,47 @@ function relativeDisplay(root, value) {
   const relative = path.relative(root, value)
   if (!relative) return '.'
   return relative.replaceAll('\\', '/')
+}
+
+function workspaceEntry(ctx, workspaceId) {
+  const id = String(workspaceId == null ? '' : workspaceId)
+  if (!id) return null
+  const found = registryWorkspaces(ctx).find(item => item && String(item.workspaceId ?? item.id ?? '') === id)
+  return found || null
+}
+
+/** 打开项目根目录的宿主命令：每个平台只用系统自带的那一个。 */
+function folderCommand(platform, target) {
+  if (platform === 'win32') return { command: 'explorer.exe', args: [target] }
+  if (platform === 'darwin') return { command: 'open', args: [target] }
+  return { command: 'xdg-open', args: [target] }
+}
+
+/** 用系统文件管理器打开工作区根目录；目录不存在时拒绝，而不是打开一个空窗口。 */
+async function openWorkspaceFolder(ctx, workspaceId, internals = {}) {
+  const workspace = workspaceEntry(ctx, workspaceId)
+  if (!workspace || typeof workspace.path !== 'string' || !workspace.path) {
+    throw Object.assign(new Error('Unknown workspace'), { statusCode: 404 })
+  }
+  const target = path.resolve(workspace.path)
+  const probe = internals.stat || stat
+  const info = await probe(target).catch(() => null)
+  if (!info || !info.isDirectory()) {
+    throw Object.assign(new Error('Workspace folder not found'), { statusCode: 404 })
+  }
+  const spawnProcess = internals.spawn || spawn
+  const { command, args } = folderCommand(process.platform, target)
+  await new Promise((resolve, reject) => {
+    const child = spawnProcess(command, args, { detached: true, stdio: 'ignore' })
+    child.once('error', reject)
+    child.once('spawn', () => {
+      child.unref()
+      resolve()
+    })
+  }).catch(() => {
+    throw Object.assign(new Error('Could not open the folder'), { statusCode: 500 })
+  })
+  return { path: target }
 }
 
 function registryWorkspaces(ctx) {

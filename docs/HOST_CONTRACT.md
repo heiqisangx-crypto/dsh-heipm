@@ -17,6 +17,7 @@
 | 工作区右键菜单 | `[data-row-key^="workspace:"]` | DOM `data-*` | 0.2.1-rc.3 | 不弹菜单 |
 | 工作区右键菜单 | `workspaces` 客户端服务 | Service | 0.2.1-rc.3 | 不装监听 |
 | 工作区右键菜单 | `[class*="projectText"] [class*="title"]` | DOM class | 0.2.1-rc.3 | 退回 `workspaces` 快照标题 |
+| 打开项目根目录 | 服务端 `workspaceRegistry.list()` + `/dsh-heipm/api` 的 `open-folder` | Service | 0.2.1-rc.5 | 菜单项提示打开失败 |
 | 主面板 / 侧栏入口 | `sidebar.panellist`、`main` 槽位 | Slot | 0.2.1-rc.3 | 不注册入口 |
 | 任务清单样式 | `.pm-quest-*`（自有 class） | 自有 DOM | 0.2.1-rc.3 | 不影响宿主 |
 | Markdown 表格 | `.cv-table`、`[class*="_tableScroll"]`、`[class*="_tableFill"]` | DOM class | 0.2.1-rc.3 | 不改表格 |
@@ -55,7 +56,7 @@ localStorage.removeItem('dsh-heipm:ui:disabled:v1')
 ## DSH 升级 checklist
 
 1. `cd D:/dsh-Workspace/dsh-heipm && npm test`，重点看 `test/ui-contract.mjs` 与 `test/workspace-menu.mjs`。
-2. 真实页面：右键工作区行，确认「重命名 / 删除工作区」出现。
+2. 真实页面：右键工作区行，确认「打开项目根目录 / 重命名 / 删除工作区」出现，点「打开项目根目录」能拉起资源管理器。
 3. 打开项目管理面板，确认侧栏入口、项目列表、任务清单正常。
 4. 逐项核对上面的依赖表；缺失的项按“缺失时”降级，或更新 `HOST_CONTRACT` + 本表。
 5. 更新 `package.json` 的 `engines.dsh` 与 README 的兼容性说明。
