@@ -186,7 +186,7 @@ window.__ModuleLoader__.load({
       registerLocale(locale.register(NS, { en: EN, zh: ZH }))
       const t = locale.bind(NS)
 
-      function QuestSection({ project, active, onCounts }) {
+      function QuestSection({ project, active, onCounts, refreshToken, onStamp }) {
         const [doc, setDoc] = useState(null)
         const [phase, setPhase] = useState('loading')
         const [error, setError] = useState(null)
@@ -220,6 +220,7 @@ window.__ModuleLoader__.load({
               const next = normalize(result)
               setDoc(next)
               setPhase('ready')
+              if (typeof onStamp === 'function') onStamp(next.version || '-')
               const flat = flatten(next.items)
               const target = flat.find(item => !(item.children && item.children.length) && item.state !== 'done' && item.parent !== null && item.parent !== undefined)
               if (target) setExpanded({ 0: true, [target.parent]: true })
@@ -230,7 +231,7 @@ window.__ModuleLoader__.load({
               setPhase('error')
             })
           return () => controller.abort()
-        }, [projectPath, active, reloadKey])
+        }, [projectPath, active, reloadKey, refreshToken])
 
         const counts = doc ? doc.counts : { total: 0, done: 0, awaiting: 0, open: 0 }
         useEffect(() => {
@@ -251,6 +252,7 @@ window.__ModuleLoader__.load({
               if (!alive.current) return
               const next = normalize(result)
               setDoc(next)
+              if (typeof onStamp === 'function') onStamp(next.version || '-')
               setExpanded(current => {
                 const open = { ...current }
                 for (const entry of flatten(next.items)) {

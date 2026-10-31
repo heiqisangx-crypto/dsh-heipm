@@ -1,5 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { mkdir, readFile, stat, unlink } from 'node:fs/promises'
@@ -64,6 +65,8 @@ export const __test = {
   syncTemplates,
   handle,
   migrateProcedures,
+  refreshScope,
+  stampScope,
   listProcedureInventory,
   markdownState,
   patchDisablesMarkdown,
@@ -139,6 +142,14 @@ async function handle(ctx, req, res) {
     }
     if (payload.action === 'quest-state') {
       send(res, 200, { ok: true, ...(await setQuestState(ctx, payload)) })
+      return
+    }
+    if (payload.action === 'refresh') {
+      send(res, 200, { ok: true, ...(await refreshScope(ctx, payload)) })
+      return
+    }
+    if (payload.action === 'stamp') {
+      send(res, 200, { ok: true, ...(await stampScope(ctx, payload)) })
       return
     }
     send(res, 400, { ok: false, error: 'Unknown action' })
@@ -374,14 +385,7 @@ async function collect(ctx, requestedSessionId) {
     seen.add(pathKey(workspacePath))
 
     const root = await findProjectRoot(fs, workspacePath)
-    const directories = []
-    for (const directory of chainDirectories(root, workspacePath)) {
-      directories.push({
-        path: directory,
-        relativePath: relativeDisplay(root, directory),
-        files: await readCandidates(fs, directory, root),
-      })
-    }
+    const directories = await readDirectoryChain(fs, root, workspacePath)
     projects.push({
       id: String(workspace.id || workspacePath),
       title: String(workspace.title || path.basename(workspacePath) || workspacePath),
@@ -516,6 +520,135 @@ async function inventory(ctx, projectPath) {
     skills: await listSkillInventory(ctx, base),
     procedures: await listProcedureInventory(ctx, base),
   }
+}
+
+async function readDirectoryChain(fs, root, start) {
+  const directories = []
+  for (const directory of chainDirectories(root, start)) {
+    directories.push({
+      path: directory,
+      relativePath: relativeDisplay(root, directory),
+      files: await readCandidates(fs, directory, root),
+    })
+  }
+  return directories
+}
+
+function globalTable() {
+  const { dshHome, agentsHome } = homes()
+  return {
+    dsh: { label: 'DSH 全局', filePath: path.join(dshHome, 'AGENTS.md') },
+    shared: { label: '共享全局', filePath: path.join(agentsHome, 'AGENTS.md') },
+  }
+}
+
+function digestOf(parts) {
+  const hash = createHash('sha1')
+  for (const part of parts) hash.update(String(part) + '\n')
+  return hash.digest('hex').slice(0, 16)
+}
+
+async function fileToken(fs, filePath) {
+  try {
+    const info = await fs.stat(await fs.resolve(filePath))
+    if (!info) return '-'
+    return `${info.type}:${info.size}:${info.version}`
+  } catch {
+    return '-'
+  }
+}
+
+async function questVersion(fs, filePath) {
+  try {
+    const info = await fs.stat(await fs.resolve(filePath))
+    return info && info.type === 'file' ? String(info.version) : '-'
+  } catch {
+    return '-'
+  }
+}
+
+/** 只重读一个作用域：globalId 读全局 AGENTS.md，projectPath 按 part 只读对应模块。 */
+async function refreshScope(ctx, payload = {}) {
+  const fs = ctx.get('fs')
+  if (!fs) throw new Error('Filesystem service is unavailable')
+
+  if (payload.globalId) {
+    const id = String(payload.globalId)
+    const entry = globalTable()[id]
+    if (!entry) {
+      const error = new Error('Unknown scope')
+      error.statusCode = 404
+      throw error
+    }
+    const scope = await globalScope(fs, id, entry.label, entry.filePath)
+    return { scopeKind: 'global', id: scope.id, files: scope.files }
+  }
+
+  const base = path.resolve(knownProjectPath(ctx, payload.projectPath))
+  const part = ['constraints', 'skills', 'procedures'].includes(payload.part) ? payload.part : 'all'
+  if (part === 'skills' || part === 'procedures') {
+    return {
+      scopeKind: 'project',
+      projectPath: base,
+      inventory: part === 'skills'
+        ? { skills: await listSkillInventory(ctx, base) }
+        : { procedures: await listProcedureInventory(ctx, base) },
+    }
+  }
+
+  const root = await findProjectRoot(fs, base)
+  const directories = await readDirectoryChain(fs, root, base)
+  if (part === 'constraints') return { scopeKind: 'project', projectPath: base, directories }
+  return { scopeKind: 'project', projectPath: base, directories, inventory: await inventory(ctx, base) }
+}
+
+/** 便宜的变更指纹：只 stat，不读内容，供页面按 3 秒节奏比对。 */
+async function stampScope(ctx, payload = {}) {
+  const fs = ctx.get('fs')
+  if (!fs) throw new Error('Filesystem service is unavailable')
+
+  const table = globalTable()
+  const stamps = {
+    globals: digestOf([
+      await fileToken(fs, table.dsh.filePath),
+      await fileToken(fs, table.shared.filePath),
+    ]),
+  }
+  if (!payload.projectPath) return { stamps }
+
+  const base = path.resolve(knownProjectPath(ctx, payload.projectPath))
+  const root = await findProjectRoot(fs, base)
+
+  const constraintParts = []
+  for (const directory of chainDirectories(root, base)) {
+    for (const name of CANDIDATES) constraintParts.push(`${name}=${await fileToken(fs, path.join(directory, name))}`)
+  }
+  stamps.constraints = digestOf(constraintParts)
+
+  const skillParts = []
+  for (const relative of SKILL_ROOTS) {
+    const skillRoot = path.join(base, ...relative.split('/'))
+    const entries = await listDirSafe(ctx, skillRoot)
+    skillParts.push(`${relative}#${entries ? entries.map(entry => `${entry.name}:${entry.type}`).sort().join(',') : '-'}`)
+    if (!entries) continue
+    for (const entry of entries) {
+      if (entry.type !== 'directory') continue
+      skillParts.push(`${entry.name}=${await fileToken(fs, path.join(skillRoot, entry.name, 'SKILL.md'))}`)
+    }
+  }
+  stamps.skills = digestOf(skillParts)
+
+  const procedureParts = []
+  for (const relative of [...PROCEDURE_ROOTS, PROCEDURE_DIR]) {
+    const procedureRoot = path.join(base, ...relative.split('/'))
+    const entries = await listDirSafe(ctx, procedureRoot)
+    const markdown = entries ? entries.filter(entry => String(entry.name).endsWith('.md')) : []
+    procedureParts.push(`${relative}#${markdown.map(entry => entry.name).sort().join(',')}`)
+    for (const entry of markdown) procedureParts.push(`${entry.name}=${await fileToken(fs, path.join(procedureRoot, entry.name))}`)
+  }
+  stamps.procedures = digestOf(procedureParts)
+  stamps.quest = await questVersion(fs, questListPath(base))
+  return { stamps }
 }
 
 async function listDirSafe(ctx, directory) {

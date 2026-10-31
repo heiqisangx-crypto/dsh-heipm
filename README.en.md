@@ -17,6 +17,7 @@
 - **Skills**: lists `.dsh/skills`, `skills/` and `.agents/skills` entries with names and descriptions.
 - **Procedures**: shows knowledge cards under `.dsh/dsh-heipm/procedures/`, with built-in index/template/tools scaffolds; templates that drifted from the plugin copy are flagged as out of date and can be updated one by one or all at once (confirmation first).
 - **Quest list**: parses `.dsh/dsh-heipm/任务清单.md` and cycles subtask states when ticked.
+- **Per-module refresh**: clicking a project or section reloads only that module; while the panel is visible a 3-second fingerprint check picks up external edits to constraints, skills, procedures and the quest list (a file being edited is only flagged, never overwritten).
 - **Workspace context menu**: right-click a workspace row in the built-in DSH sidebar to rename it or remove its registration, using the plugin theme.
 - **Markdown table styling** (optional sub-plugin): rounded, outlined wide tables with an expand/collapse toggle.
 

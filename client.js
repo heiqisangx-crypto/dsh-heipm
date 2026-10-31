@@ -11,7 +11,6 @@ window.__ModuleLoader__.load({
 
     const EN = {
       'nav.label': 'Projects',
-      'page.title': 'Heipm DSH Project Manager',
       'page.subtitle': 'Pick a project on the left, then choose what to manage: constraints, skills, or procedures.',
       'page.subtitle.basic': 'Pick a project on the left, then choose what to manage: constraints or skills.',
       'col.projects': 'Projects',
@@ -20,7 +19,6 @@ window.__ModuleLoader__.load({
       'search.clear': 'Clear filter',
       'search.noResults': 'No project matches this filter.',
       'search.results': 'matches',
-      'count.projects': 'projects',
       'count.files': 'files',
       'group.global': 'Global',
       'group.projects': 'Projects',
@@ -29,7 +27,6 @@ window.__ModuleLoader__.load({
       'global.scoped.title': 'Global group: constraints only',
       'global.scoped.body': 'Skills and procedures are counted per project. Pick a project on the left to inspect them.',
       'global.scoped.body.basic': 'Skills are counted per project. Pick a project on the left to inspect them.',
-      'action.refresh': 'Refresh',
       'action.retry': 'Try again',
       'action.reload': 'Reload',
       'action.save': 'Save',
@@ -62,6 +59,7 @@ window.__ModuleLoader__.load({
       'editor.emptyTitle': 'No AGENTS.md here',
       'editor.emptyBody': 'This scope has no AGENTS.md candidate to edit.',
       'editor.missingHint': 'This file does not exist yet. Saving will create it.',
+      'editor.stale': 'This file changed on disk. Reload it before saving so external edits are not overwritten.',
       'editor.tooLargeHint': 'Open this file in an editor instead; its size exceeds the inline limit.',
       'editor.placeholder': 'Write project or global instructions here…',
       'editor.lines': 'lines',
@@ -107,7 +105,6 @@ window.__ModuleLoader__.load({
 
     const ZH = {
       'nav.label': '项目管理',
-      'page.title': '黑崎的 DSH 项目管理',
       'page.subtitle': '在左侧选择项目，再选择要管理的内容：约束、技能或经验流程。',
       'page.subtitle.basic': '在左侧选择项目，再选择要管理的内容：约束或技能。',
       'col.projects': '项目',
@@ -116,7 +113,6 @@ window.__ModuleLoader__.load({
       'search.clear': '清除筛选',
       'search.noResults': '没有匹配的项目。',
       'search.results': '个匹配',
-      'count.projects': '个项目',
       'count.files': '个文件',
       'group.global': '全局',
       'group.projects': '项目',
@@ -125,7 +121,6 @@ window.__ModuleLoader__.load({
       'global.scoped.title': '全局分组仅支持约束',
       'global.scoped.body': '技能与经验流程按项目统计，请在左侧选择具体项目查看。',
       'global.scoped.body.basic': '技能按项目统计，请在左侧选择具体项目查看。',
-      'action.refresh': '刷新',
       'action.retry': '重试',
       'action.reload': '重新加载',
       'action.save': '保存',
@@ -158,6 +153,7 @@ window.__ModuleLoader__.load({
       'editor.emptyTitle': '这里没有 AGENTS.md',
       'editor.emptyBody': '当前作用域下没有可编辑的 AGENTS.md。',
       'editor.missingHint': '该文件尚不存在，保存后将创建。',
+      'editor.stale': '该文件已在磁盘更新。重新加载后再保存，才不会覆盖外部改动。',
       'editor.tooLargeHint': '请用外部编辑器打开；文件大小超过内联编辑上限。',
       'editor.placeholder': '在这里编写全局或项目约束…',
       'editor.lines': '行',
@@ -254,32 +250,6 @@ window.__ModuleLoader__.load({
         line-height: 1.4;
         pointer-events: none;
       }
-      .pm-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 20px;
-        padding: 22px 28px 18px;
-        border-bottom: 1px solid var(--dsw-alias-border-l1);
-        background: var(--dsw-alias-bg-layer-1);
-        flex: 0 1 auto;
-      }
-      .pm-heading { display: flex; gap: 13px; align-items: flex-start; min-width: 0; }
-      .pm-mark {
-        display: grid;
-        place-items: center;
-        width: 38px;
-        height: 38px;
-        flex: 0 0 38px;
-        border: 1px solid var(--dsw-alias-border-l1);
-        border-radius: 10px;
-        background: var(--dsw-alias-bg-layer-2);
-        color: var(--dsw-alias-brand-primary);
-      }
-      .pm-heading h1 { margin: 0; font-size: 18px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; }
-      .pm-heading p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--dsw-alias-label-secondary); max-width: 74ch; }
-      .pm-head-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
-      .pm-stat { font-size: 12px; color: var(--dsw-alias-label-secondary); white-space: nowrap; }
       .pm-btn {
         font: inherit;
         font-size: 12.5px;
@@ -319,7 +289,7 @@ window.__ModuleLoader__.load({
       }
       .pm-scroll { flex: 1 1 auto; overflow: auto; padding: 0 8px 14px; }
       .pm-search {
-        display: flex; align-items: center; gap: 6px; margin: 0 14px 8px;
+        display: flex; align-items: center; gap: 6px; margin: 12px 14px 8px;
         padding: 0 8px; height: 30px; border-radius: 8px;
         border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2);
       }
@@ -335,8 +305,21 @@ window.__ModuleLoader__.load({
       .pm-search button:hover { color: var(--pm-accent-strong); }
       .pm-search-meta { margin: 0 14px 6px; font-size: 11.5px; color: var(--dsw-alias-label-secondary); }
       .pm-group-label {
-        margin: 10px 8px 4px; padding: 0 6px; font-size: 11px; font-weight: 600;
+        display: flex; align-items: center; gap: 6px; width: 100%;
+        margin: 10px 0 4px; padding: 4px 6px; border: 0; border-radius: 6px;
+        background: transparent; font: inherit; font-size: 11px; font-weight: 600;
         letter-spacing: .04em; text-transform: uppercase; color: var(--dsw-alias-label-secondary);
+        text-align: left; cursor: pointer;
+      }
+      .pm-group-label:hover { color: var(--pm-accent-strong); }
+      .pm-group-label:focus-visible { outline: 2px solid var(--pm-accent-ring); outline-offset: -2px; }
+      .pm-group-caret { flex: 0 0 8px; color: var(--pm-accent); font-size: 9px; }
+      .pm-group-name { flex: 1 1 auto; }
+      .pm-group-count {
+        flex: 0 0 auto; padding: 1px 7px; border-radius: 999px;
+        border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2);
+        color: var(--dsw-alias-label-secondary); font-size: 10.5px; letter-spacing: 0;
+        text-transform: none;
       }
       .pm-item {
         display: flex; align-items: center; gap: 9px; width: 100%;
@@ -385,6 +368,7 @@ window.__ModuleLoader__.load({
       }
       .pm-section-head h2 { margin: 0; font-size: 15.5px; font-weight: 600; }
       .pm-section-head p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--dsw-alias-label-secondary); max-width: 76ch; }
+      .pm-section-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
       .pm-section-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
       .pm-banner {
         display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -829,7 +813,7 @@ window.__ModuleLoader__.load({
 
     /* ----- editor for AGENTS.md constraint files ----- */
 
-    function EditorPane({ file, t, onSaved, onDeleted, reload }) {
+    function EditorPane({ file, t, onSaved, onDeleted, reload, stale, onStaleReload, onDirtyChange }) {
       const [draft, setDraft] = useState('')
       const [base, setBase] = useState('')
       const [fileError, setFileError] = useState(null)
@@ -842,6 +826,13 @@ window.__ModuleLoader__.load({
       const editable = file.scopeKind === 'project' || file.scopeKind === 'global'
       const dirty = draft !== base
       const busy = saving || deleting
+
+      useEffect(() => {
+        if (typeof onDirtyChange === 'function') onDirtyChange(dirty)
+      }, [dirty, onDirtyChange])
+      useEffect(() => () => {
+        if (typeof onDirtyChange === 'function') onDirtyChange(false)
+      }, [])
       const disabled = Boolean(file.tooLarge || (file.error && file.exists))
       const lineCount = Math.max(1, draft.split('\n').length)
 
@@ -930,8 +921,14 @@ window.__ModuleLoader__.load({
             file.exists ? h('span', null, formatBytes(file.size)) : null,
           ),
         ),
-        fileError || notice || !file.exists || file.tooLarge
+        fileError || notice || !file.exists || file.tooLarge || stale
           ? h('div', null,
+              stale
+                ? h('div', { className: 'pm-banner warn' },
+                    h('span', null, t('editor.stale')),
+                    h('button', { type: 'button', className: 'pm-btn', onClick: onStaleReload }, t('action.reload')),
+                  )
+                : null,
               fileError
                 ? h('div', { className: 'pm-banner error' },
                     h('span', null, fileError),
@@ -2319,6 +2316,22 @@ window.__ModuleLoader__.load({
     /* ----- page ----- */
 
     const SECTION_KEYS = ['constraints', 'skills', 'procedures', 'quest']
+    const LIST_GROUPS_KEY = 'dsh-heipm:listGroupsCollapsed:v1'
+
+    function loadCollapsedGroups() {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(LIST_GROUPS_KEY) || '[]')
+        return Array.isArray(parsed) ? parsed.filter(value => value === 'projects' || value === 'globals') : []
+      } catch {
+        return []
+      }
+    }
+
+    function saveCollapsedGroups(value) {
+      try {
+        window.localStorage.setItem(LIST_GROUPS_KEY, JSON.stringify(value))
+      } catch {}
+    }
 
     function ProjectManagerPage({ t, locale }) {
       const [data, setData] = useState(null)
@@ -2332,6 +2345,15 @@ window.__ModuleLoader__.load({
       const [sectionsWidth, setSectionsWidth] = useState(() => loadStoredWidth(WIDTH_KEYS.sections, SECTIONS_DEFAULT, SECTIONS_MIN, SECTIONS_MAX))
       const [resizing, setResizing] = useState(false)
       const [questCounts, setQuestCounts] = useState(null)
+      const [questToken, setQuestToken] = useState(0)
+      const [sectionError, setSectionError] = useState({})
+      const [stale, setStale] = useState(null)
+      const [collapsedGroups, setCollapsedGroups] = useState(() => loadCollapsedGroups())
+      const dirtyRef = useRef(false)
+      const stampsRef = useRef(null)
+      const questStampRef = useRef(null)
+      const scopeRef = useRef(null)
+      const refreshRef = useRef(null)
       const searchRef = useRef(null)
       const schemeProbeRef = useRef(null)
       const pageRef = useRef(null)
@@ -2402,13 +2424,124 @@ window.__ModuleLoader__.load({
       }, [filtered, selectionId])
 
       const currentKey = current ? `${current.kind}:${current.id}` : ''
+      scopeRef.current = current
       useEffect(() => {
         if (current && currentKey !== selectionId) setSelectionId(currentKey)
       }, [currentKey])
 
+      useEffect(() => {
+        if (!current) return
+        stampsRef.current = null
+        questStampRef.current = null
+        setSectionError({})
+        setStale(null)
+        dirtyRef.current = false
+        primeStamp(current)
+      }, [currentKey])
+
+      useEffect(() => {
+        const timer = setInterval(() => {
+          if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+          const scope = scopeRef.current
+          if (!scope) return
+          const payload = { action: 'stamp' }
+          if (scope.kind === 'project') payload.projectPath = scope.project.path
+          api(payload).then(result => {
+            if (scopeRef.current !== scope) return
+            const stamps = result && result.stamps
+            if (!stamps) return
+            const previous = stampsRef.current
+            stampsRef.current = stamps
+            if (!previous) return
+            if (scope.kind === 'global') {
+              if (previous.globals !== stamps.globals) refreshRef.current(scope, 'constraints')
+              return
+            }
+            if (previous.constraints !== stamps.constraints) refreshRef.current(scope, 'constraints')
+            if (previous.skills !== stamps.skills) refreshRef.current(scope, 'skills')
+            if (previous.procedures !== stamps.procedures) refreshRef.current(scope, 'procedures')
+            const known = questStampRef.current === null ? previous.quest : questStampRef.current
+            if (stamps.quest !== known) {
+              questStampRef.current = stamps.quest
+              setQuestToken(token => token + 1)
+            }
+          }).catch(() => {})
+        }, 3000)
+        return () => clearInterval(timer)
+      }, [currentKey])
+
+      function toggleGroup(key) {
+        setCollapsedGroups(previous => {
+          const next = previous.includes(key) ? previous.filter(value => value !== key) : [...previous, key]
+          saveCollapsedGroups(next)
+          return next
+        })
+      }
+
+      function applyRefresh(result) {
+        if (!result) return
+        if (result.scopeKind === 'global') {
+          setData(previous => previous
+            ? { ...previous, globals: (previous.globals || []).map(entry => entry.id === result.id ? { ...entry, files: result.files } : entry) }
+            : previous)
+          return
+        }
+        setData(previous => {
+          if (!previous) return previous
+          return {
+            ...previous,
+            projects: (previous.projects || []).map(entry => {
+              if (entry.path !== result.projectPath) return entry
+              return {
+                ...entry,
+                directories: result.directories || entry.directories,
+                inventory: result.inventory ? { ...entry.inventory, ...result.inventory } : entry.inventory,
+              }
+            }),
+          }
+        })
+      }
+
+      async function primeStamp(scope) {
+        try {
+          const payload = { action: 'stamp' }
+          if (scope && scope.kind === 'project') payload.projectPath = scope.project.path
+          const result = await api(payload)
+          if (result && result.stamps) stampsRef.current = result.stamps
+        } catch {}
+      }
+
+      async function refreshScope(scope, part) {
+        if (!scope) return
+        const key = part === 'all' || part === 'constraints' ? 'constraints' : part
+        setSectionError(previous => ({ ...previous, [key]: null }))
+        try {
+          if (part === 'quest') {
+            setQuestToken(token => token + 1)
+            return
+          }
+          const payload = scope.kind === 'global'
+            ? { action: 'refresh', globalId: scope.id }
+            : { action: 'refresh', projectPath: scope.project.path, part }
+          const result = await api(payload)
+          const touchesConstraints = part === 'all' || part === 'constraints'
+          if (touchesConstraints && dirtyRef.current) setStale(result)
+          else {
+            applyRefresh(result)
+            if (touchesConstraints) setStale(null)
+          }
+          await primeStamp(scopeRef.current || scope)
+        } catch (error) {
+          setSectionError(previous => ({ ...previous, [key]: error && error.message ? error.message : String(error) }))
+        }
+      }
+      refreshRef.current = refreshScope
+
       function select(item) {
-        if (`${item.kind}:${item.id}` === selectionId) return
         setSelectionId(`${item.kind}:${item.id}`)
+        dirtyRef.current = false
+        setStale(null)
+        refreshScope(item, 'all')
       }
 
       function reload() {
@@ -2435,6 +2568,11 @@ window.__ModuleLoader__.load({
           available: true,
         }))
       const activeSection = sections.find(entry => entry.key === section) || sections[1]
+      const projectItems = filtered.filter(item => item.kind === 'project')
+      const globalItems = filtered.filter(item => item.kind === 'global')
+      const projectCount = tokens.length ? projectItems.length : (data && data.projects ? data.projects.length : 0)
+      const projectsOpen = tokens.length > 0 || !collapsedGroups.includes('projects')
+      const globalsOpen = tokens.length > 0 || !collapsedGroups.includes('globals')
 
       function renderSection() {
         if (!data || !scope) return null
@@ -2455,6 +2593,13 @@ window.__ModuleLoader__.load({
               onSaved,
               onDeleted,
               reload,
+              stale,
+              onStaleReload: () => {
+                if (!stale) return
+                applyRefresh(stale)
+                setStale(null)
+              },
+              onDirtyChange: value => { dirtyRef.current = Boolean(value) },
             }),
           )
         }
@@ -2464,6 +2609,8 @@ window.__ModuleLoader__.load({
             project: scope.project,
             active: section === 'quest',
             onCounts: setQuestCounts,
+            refreshToken: questToken,
+            onStamp: value => { questStampRef.current = value },
           })
         }
         return h(ProceduresSectionLazy, { t, project: scope.project, onReload: reload })
@@ -2473,19 +2620,6 @@ window.__ModuleLoader__.load({
         h('style', null, CSS),
         h('span', { className: 'pm-scheme-probe', ref: schemeProbeRef, 'aria-hidden': true }),
         zoomLabel === null ? null : h('div', { className: 'pm-zoom-badge' }, `${zoomLabel}%`),
-        h('header', { className: 'pm-header' },
-          h('div', { className: 'pm-heading' },
-            h('div', { className: 'pm-mark' }, h(PanelIcon, { size: 21, active: true })),
-            h('div', null,
-              h('h1', null, t('page.title')),
-              h('p', null, t(proceduresEnabled ? 'page.subtitle' : 'page.subtitle.basic')),
-            ),
-          ),
-          h('div', { className: 'pm-head-actions' },
-            data ? h('span', { className: 'pm-stat' }, `${(data.projects || []).length} ${t('count.projects')}`) : null,
-            h('button', { type: 'button', className: 'pm-btn', onClick: reload, disabled: phase === 'loading' }, t('action.refresh')),
-          ),
-        ),
         !data && phase === 'loading'
           ? h('div', { className: 'pm-loading' }, h('span', { className: 'pm-spinner' }), h('span', null, t('status.loading')))
           : null,
@@ -2505,7 +2639,6 @@ window.__ModuleLoader__.load({
               },
             },
               h('aside', { className: 'pm-col projects' },
-                h('div', { className: 'pm-col-head' }, t('col.projects')),
                 h('div', { className: 'pm-search' },
                   h(SearchIcon),
                   h('input', {
@@ -2533,34 +2666,61 @@ window.__ModuleLoader__.load({
                   tokens.length && filtered.length === 0
                     ? h('div', { className: 'pm-empty-nav' }, t('search.noResults'))
                     : [
-                        filtered.some(item => item.kind === 'project') ? h('div', { className: 'pm-group-label', key: 'gp' }, t('group.projects')) : null,
-                        ...filtered.filter(item => item.kind === 'project').map(item => h('button', {
-                          key: `project:${item.id}`,
-                          type: 'button',
-                          className: `pm-item${current && current.kind === 'project' && current.id === item.id ? ' active' : ''}`,
-                          title: item.path,
-                          onClick: () => select(item),
-                        },
-                          h('span', { className: 'pm-item-icon' }, h(PanelIcon, { size: 15, active: current && current.id === item.id })),
-                          h('span', { className: 'pm-item-main' },
-                            h('span', { className: 'pm-item-title' }, item.title),
-                            h('span', { className: 'pm-item-path' }, item.path),
-                          ),
-                        )),
-                        filtered.some(item => item.kind === 'global') ? h('div', { className: 'pm-group-label', key: 'gg' }, t('group.global')) : null,
-                        ...filtered.filter(item => item.kind === 'global').map(item => h('button', {
-                          key: `global:${item.id}`,
-                          type: 'button',
-                          className: `pm-item${current && current.kind === 'global' && current.id === item.id ? ' active' : ''}`,
-                          title: item.path,
-                          onClick: () => select(item),
-                        },
-                          h('span', { className: 'pm-item-icon' }, h(SectionIcon, { kind: 'constraints', size: 15 })),
-                          h('span', { className: 'pm-item-main' },
-                            h('span', { className: 'pm-item-title' }, item.title),
-                            h('span', { className: 'pm-item-path' }, item.path),
-                          ),
-                        )),
+                        filtered.some(item => item.kind === 'project')
+                          ? h('button', {
+                              key: 'gp',
+                              type: 'button',
+                              className: 'pm-group-label',
+                              'aria-expanded': projectsOpen,
+                              onClick: () => toggleGroup('projects'),
+                            },
+                              h('span', { className: 'pm-group-caret', 'aria-hidden': 'true' }, projectsOpen ? '▾' : '▸'),
+                              h('span', { className: 'pm-group-name' }, t('group.projects')),
+                              h('span', { className: 'pm-group-count' }, String(projectCount)),
+                            )
+                          : null,
+                        projectsOpen
+                          ? projectItems.map(item => h('button', {
+                              key: `project:${item.id}`,
+                              type: 'button',
+                              className: `pm-item${current && current.kind === 'project' && current.id === item.id ? ' active' : ''}`,
+                              title: item.path,
+                              onClick: () => select(item),
+                            },
+                              h('span', { className: 'pm-item-icon' }, h(PanelIcon, { size: 15, active: current && current.id === item.id })),
+                              h('span', { className: 'pm-item-main' },
+                                h('span', { className: 'pm-item-title' }, item.title),
+                                h('span', { className: 'pm-item-path' }, item.path),
+                              ),
+                            ))
+                          : null,
+                        filtered.some(item => item.kind === 'global')
+                          ? h('button', {
+                              key: 'gg',
+                              type: 'button',
+                              className: 'pm-group-label',
+                              'aria-expanded': globalsOpen,
+                              onClick: () => toggleGroup('globals'),
+                            },
+                              h('span', { className: 'pm-group-caret', 'aria-hidden': 'true' }, globalsOpen ? '▾' : '▸'),
+                              h('span', { className: 'pm-group-name' }, t('group.global')),
+                            )
+                          : null,
+                        globalsOpen
+                          ? globalItems.map(item => h('button', {
+                              key: `global:${item.id}`,
+                              type: 'button',
+                              className: `pm-item${current && current.kind === 'global' && current.id === item.id ? ' active' : ''}`,
+                              title: item.path,
+                              onClick: () => select(item),
+                            },
+                              h('span', { className: 'pm-item-icon' }, h(SectionIcon, { kind: 'constraints', size: 15 })),
+                              h('span', { className: 'pm-item-main' },
+                                h('span', { className: 'pm-item-title' }, item.title),
+                                h('span', { className: 'pm-item-path' }, item.path),
+                              ),
+                            ))
+                          : null,
                         !tokens.length && (data.projects || []).length === 0
                           ? h('div', { className: 'pm-empty-nav', key: 'none' }, t('tree.noProjects'))
                           : null,
@@ -2595,7 +2755,10 @@ window.__ModuleLoader__.load({
                         type: 'button',
                         className: `pm-item${activeSection && activeSection.key === entry.key ? ' active' : ''}`,
                         title: entry.desc,
-                        onClick: () => setSection(entry.key),
+                        onClick: () => {
+                          setSection(entry.key)
+                          if (scope) refreshScope(scope, entry.key)
+                        },
                       },
                         h('span', { className: 'pm-item-icon' }, h(SectionIcon, { kind: entry.key, size: 15 })),
                         h('span', { className: 'pm-item-main' }, h('span', { className: 'pm-item-title' }, entry.title)),
@@ -2633,7 +2796,17 @@ window.__ModuleLoader__.load({
                           h('h2', null, activeSection.title),
                           h('p', null, activeSection.desc),
                         ),
-                        h('span', { className: 'pm-badge' }, scope.kind === 'project' ? scope.title : scope.path),
+                        h('div', { className: 'pm-section-actions' },
+                          sectionError[activeSection.key]
+                            ? h('button', {
+                                type: 'button',
+                                className: 'pm-btn',
+                                title: sectionError[activeSection.key],
+                                onClick: () => refreshScope(scope, activeSection.key),
+                              }, t('action.retry'))
+                            : null,
+                          h('span', { className: 'pm-badge' }, scope.kind === 'project' ? scope.title : scope.path),
+                        ),
                       ),
                       h(SectionBoundary, { key: `${scope.kind}:${scope.id}:${activeSection.key}`, t }, renderSection()),
                     ),

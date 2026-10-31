@@ -305,6 +305,33 @@ try {
     foreignSync = error && error.statusCode === 400
   }
   check('sync rejects an unknown project', foreignSync)
+
+  const partialProcedures = await __test.refreshScope(ctx, { projectPath: workspace, part: 'procedures' })
+  check('refresh can target one module',
+    Boolean(partialProcedures.inventory && partialProcedures.inventory.procedures)
+      && partialProcedures.inventory.skills === undefined)
+  const partialConstraints = await __test.refreshScope(ctx, { projectPath: workspace, part: 'constraints' })
+  check('constraint refresh skips the inventory',
+    Array.isArray(partialConstraints.directories) && partialConstraints.inventory === undefined)
+  const fullRefresh = await __test.refreshScope(ctx, { projectPath: workspace })
+  check('full refresh returns constraints and inventory',
+    fullRefresh.directories.length > 0 && Boolean(fullRefresh.inventory.procedures))
+  const globalRefresh = await __test.refreshScope(ctx, { globalId: 'dsh' })
+  check('refresh reads a global scope', globalRefresh.scopeKind === 'global' && globalRefresh.id === 'dsh')
+
+  const stampBefore = (await __test.stampScope(ctx, { projectPath: workspace })).stamps
+  check('stamp covers every module',
+    ['globals', 'constraints', 'skills', 'procedures', 'quest'].every(key => typeof stampBefore[key] === 'string'),
+    JSON.stringify(stampBefore))
+  await writeFile(path.join(proceduresRoot, '工具-示例.md'), '# 示例\n\n正文改长了\n', 'utf8')
+  const stampAfterCard = (await __test.stampScope(ctx, { projectPath: workspace })).stamps
+  check('editing a card changes only the procedures stamp',
+    stampAfterCard.procedures !== stampBefore.procedures
+      && stampAfterCard.constraints === stampBefore.constraints
+      && stampAfterCard.quest === stampBefore.quest)
+  await writeFile(path.join(workspace, '.dsh', 'dsh-heipm', '任务清单.md'), '[ ] 一、测试\n\t[ ] 子任务\n', 'utf8')
+  const stampAfterQuest = (await __test.stampScope(ctx, { projectPath: workspace })).stamps
+  check('editing the task list changes the quest stamp', stampAfterQuest.quest !== stampAfterCard.quest)
 } finally {
   await rm(workspace, { recursive: true, force: true }).catch(() => {})
 }

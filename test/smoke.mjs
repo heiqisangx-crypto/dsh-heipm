@@ -489,6 +489,12 @@ const cases = [
   ['project+quest+empty-open', { projects: [questDoneProject], globals: [], questEnabled: true }, 'quest', 'group.done', 'group.open · 0'],
   ['project+procedures+legacy-budget', { projects: [projectWithLegacy], globals: [], proceduresEnabled: true }, 'procedures',
     'procedures.legacy.title', null, null, { word: '工具-老卡', max: 3 }],
+  ['project+no-header', { projects: [project], globals: [] }, 'constraints', 'group.projects', 'page.title'],
+  ['project+group-count', { projects: [project, projectWithProcedures], globals }, 'constraints', 'group.projects 2', 'count.projects'],
+  ['project+groups-collapsed', { projects: [project], globals }, 'constraints', 'group.projects', 'D:/demo',
+    { 'dsh-heipm:listGroupsCollapsed:v1': JSON.stringify(['projects']) }],
+  ['project+groups-collapsed-globals', { projects: [project], globals }, 'constraints', 'group.global', 'D:/demo',
+    { 'dsh-heipm:listGroupsCollapsed:v1': JSON.stringify(['projects']) }],
 ]
 
 let failed = 0
