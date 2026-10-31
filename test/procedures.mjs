@@ -27,7 +27,7 @@ assert.equal(section.name, 'heipm:procedures')
 assert.equal(section.order, 9000)
 assert.equal(section.interpolate, false)
 assert.equal(section.complete, undefined)
-for (const phrase of ['冷启动', '锚点', '_inbox.md', '一张卡写四条', 'procedures-tools']) {
+for (const phrase of ['冷启动（每个任务都做）', '定向搜', '锚点', '_inbox.md', '一张卡写四条', 'procedures-tools']) {
   assert.ok(section.text.includes(phrase), `missing phrase: ${phrase}`)
 }
 assert.ok(!section.text.includes('任务清单'), 'task list belongs to the quest-list sub-plugin, not here')
