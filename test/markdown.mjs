@@ -9,16 +9,16 @@ const ENTRY_SOURCE = readFileSync(new URL('../client.js', import.meta.url), 'utf
 const MARKDOWN_CSS = /const MARKDOWN_CSS = ("(?:[^"\\]|\\.)*")/.exec(ENTRY_SOURCE)[1]
 const PATCH = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
 const PKG = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
-const ICON = readFileSync(new URL('../markdown/icon.svg', import.meta.url), 'utf8')
+const ICON = readFileSync(new URL('../markdown/icon.png', import.meta.url))
 
 assert.equal(name, 'heipm-markdown')
 assert.match(PATCH, /- id: dsh-heipm-markdown\n\s+name: 'dsh-heipm\/markdown'\n\s+disabled: true/,
   'markdown sub-plugin must be listed and disabled by default')
 assert.equal(PKG.exports['./markdown'], './markdown/index.js')
-assert.equal(PKG.exports['./markdown/icon'], './markdown/icon.svg', 'plugin metadata only accepts real image files')
+assert.equal(PKG.exports['./markdown/icon'], './markdown/icon.png', 'plugin metadata only accepts real image files')
 assert.ok(!PKG.files.some(file => file.endsWith('.css')), 'the host only serves .js, so no .css may be shipped')
 assert.ok(!PKG.files.some(file => file.includes('client.markdown')), 'no markdown chunk is left behind')
-assert.ok(ICON.trimStart().startsWith('<svg'), 'the icon must be a real SVG file')
+assert.ok(ICON.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), 'the icon must be a real PNG file')
 
 assert.ok(ENTRY_SOURCE.includes("require.async('./client.procedures.js')"), 'the procedures chunk stays lazy')
 assert.ok(!ENTRY_SOURCE.includes('client.markdown.js'), 'the markdown styling must live in the entry, not a chunk')

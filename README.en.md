@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icon.svg" width="64" height="64" alt="dsh-heipm">
+  <img src="icon.png" width="64" height="64" alt="dsh-heipm">
 </p>
 
 <h1 align="center">dsh-heipm</h1>
