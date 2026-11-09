@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import { rmSync } from 'node:fs'
-import { mkdtemp, mkdir } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { apply, inject, name } from '../procedures/index.js'
 import { registerCommands } from '../procedures/tools.js'
@@ -32,11 +32,13 @@ for (const phrase of ['冷启动（每个任务都做）', '定向搜', '锚点'
 }
 assert.ok(!section.text.includes('任务清单'), 'task list belongs to the quest-list sub-plugin, not here')
 
-assert.deepEqual(registered.map(entry => entry.name), ['proc-audit', 'proc-review', 'proc-scan', 'proc-probe'])
+assert.deepEqual(registered.map(entry => entry.name), ['proc-audit', 'proc-review', 'proc-scan', 'proc-stats', 'proc-probe'])
 
 const tempRoot = await mkdtemp(path.join(tmpdir(), 'dsh-heipm-procedures-'))
 const tempProject = path.join(tempRoot, 'project')
-await mkdir(path.join(tempProject, '.dsh', 'dsh-heipm', 'procedures'), { recursive: true })
+const tempCards = path.join(tempProject, '.dsh', 'dsh-heipm', 'procedures')
+await mkdir(tempCards, { recursive: true })
+await writeFile(path.join(tempCards, '工具-样例.md'), '# 工具-样例\n\n> **锚点**：sample-anchor\n')
 const cardCtx = {
   get: name => (name === 'workspaceRegistry'
     ? { list: () => [{ id: 'w-temp', path: tempProject, sessionIds: ['sess-x'] }] }
@@ -54,6 +56,7 @@ async function runCommand(name, ctx, agentId, rawInput = '') {
 }
 
 for (const entry of registered) {
+  if (entry.name === 'proc-stats') continue
   assert.ok(entry.description.length > 0, `missing description: ${entry.name}`)
   assert.ok(entry.input && entry.input.hint, `missing input hint: ${entry.name}`)
   const result = await runCommand(entry.name, cardCtx, 'sess-x')
@@ -73,6 +76,13 @@ assert.ok((await runCommand('proc-scan', cardCtx, 'sess-x')).text.includes('个�
   'proc-scan defaults to list and must return the workspace table')
 assert.ok((await runCommand('proc-probe', cardCtx, 'sess-x')).text.includes('探针启动'),
   'proc-probe must return the probe log')
+
+const statsSessions = path.join(tempRoot, 'sessions')
+await mkdir(statsSessions, { recursive: true })
+const statsRun = await runCommand('proc-stats', cardCtx, 'sess-x', '--sessions ' + statsSessions)
+assert.equal(statsRun.kind, 'success', 'proc-stats must succeed on an empty session root')
+assert.ok(statsRun.text.includes('卡库使用指标'), `proc-stats must return the metrics report: ${statsRun.text.slice(0, 80)}`)
+assert.ok(statsRun.text.includes('**汇总**'), `proc-stats must render markdown by default: ${statsRun.text.slice(0, 120)}`)
 
 const auditWithArgs = await runCommand('proc-audit', cardCtx, 'sess-x', '--max-bytes 4096')
 assert.equal(auditWithArgs.kind, 'success', 'extra arguments must be forwarded')
@@ -97,4 +107,4 @@ process.chdir(fallbackCwd)
 assert.equal(fallbackScoped.kind, 'success', 'an unrelated session must fall back to the current directory card dir')
 assert.ok(fallbackScoped.text.includes('卡库评审'), 'the fallback run must still produce a report')
 
-console.log('ok   procedures sub-plugin registers one fixed section and four commands')
+console.log('ok   procedures sub-plugin registers one fixed section and five commands')

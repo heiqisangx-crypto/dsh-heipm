@@ -1,4 +1,4 @@
-# tools/ —— 三个可选附件
+# tools/ —— 五个可选附件
 
 这些脚本**不是**经验库机制的一部分。它们只是配套工具：
 
@@ -7,6 +7,8 @@
 | `scan-sessions.mjs` | 机制落地**之前**：从已有的历史会话里挖「碰壁 → 正确姿势」，用来攒第一批经验卡 |
 | `procedures-probe.mjs` | 机制落地**之后**：盯住新会话，验证 agent 到底有没有主动去读 `procedures/`（钩子生不生效） |
 | `procedures-audit.mjs` | 卡攒起来**之后**：静态体检 —— 结构缺段、断链、体积、触发词覆盖、对象失效、结论偏旧 |
+| `procedures-review.mjs` | 卡攒起来**之后**：谁最近没被用过、按分层该不该复核（读会话日志） |
+| `procedures-stats.mjs` | 卡被复用**之后**：新鲜度 / 检索命中率 / 打开率 / 成功率 / 效率，给评分和「该修哪张」提供数字 |
 
 核心机制（钩子 + 索引 + 卡）**不依赖这些脚本中的任何一个**。删掉 `tools/` 目录，机制照常工作。
 
@@ -21,9 +23,54 @@
 | `scan-sessions.mjs` | `--workspace <slug>`（或位置参数）/ `--sessions <会话根>` |
 | `procedures-probe.mjs` | `--workspace <slug>` |
 
-具体用法（含本机绝对路径）看斜杠命令 `proc-audit` / `proc-review` / `proc-scan` / `proc-probe` 给出的现成命令。
+`procedures-stats.mjs` 读会话日志 + 卡文件，输出四项指标，只读不写卡。
+
+具体用法（含本机绝对路径）看斜杠命令 `proc-audit` / `proc-review` / `proc-scan` / `proc-stats` / `proc-probe`。
 
 三个文件各自独立、零依赖——但都依赖同一套宿主约定（见文末「失效风险」）。
+
+---
+
+## `procedures-stats.mjs` —— 卡库使用指标
+
+```bash
+node procedures-stats.mjs --procedures <卡库目录>
+node procedures-stats.mjs --procedures ... --sessions <会话根> --workspace all
+node procedures-stats.mjs --procedures ... --days 60 --json
+node procedures-stats.mjs --procedures ... --md   # 会话里直接渲染成 Markdown
+# 收尾记一行结果（追加到 <卡库目录>/_stats/events.jsonl）
+node procedures-stats.mjs --procedures ... --record --card <卡名> --result success --steps 7 --perfect
+node procedures-stats.mjs --procedures ... --record --card <卡名> --result fail --steps 12 --reason "缺前提：只适用于 npm"
+# 建卡后补记首发步数（基线）
+node procedures-stats.mjs --procedures ... --baseline --card <卡名> --steps 7
+```
+
+指标口径：
+
+| 指标 | 判据 | 可信度 |
+| --- | --- | --- |
+| 新鲜度 | 今天距「文件修改时间 / 卡内最晚日期」中较晚者；超过 `--days`（默认 60）标 `!` | 高（纯静态） |
+| 检索命中率 | 用户发言出现卡锚点（跨卡高频词剔除）→ 该回合工具结果里出现卡文件名 | 中（锚点写得好就准） |
+| 打开率 | 工具结果里出现 `# <卡标题>`（整篇被读进上下文，grep 列文件名不算） | 高 |
+| 成功率 | 优先读 `_stats/events.jsonl`；没有记录才看下一轮用户发言（还是不行=失败 / 可以了=成功），都没有记「未知」 | 有记录时高，否则低 |
+| 积分 | 成功 +2、比基线步数少 +1、`--perfect` +1、失败 -1、变差 -2；只从事件记录算 | 高（前提是诚实记录） |
+
+**积分与基线**：每张卡从 0 分起累加。基线取三层里最靠前的一个：① `--baseline` 事件 ② 卡头 `> **首发步数**：N` ③ 从「首次写入该卡那一轮」推断（报表里带 `*` 的是前两层）。没有基线时「更快 +1」不计。失败（`fail`）和把问题搞大（`worse`）**必须写 `--reason`**，否则拒绝记录。
+
+**事件格式**（一行一条 JSON，`_stats/events.jsonl`）：
+
+```json
+{"date":"2026-11-01","card":"工具-wsl2局域网访问不到","project":"demo","session":"session-x","result":"success","steps":7,"perfect":true,"reason":"","note":""}
+```
+
+- `result`：`success`（解决）/ `fail`（没解决）/ `worse`（问题变大）。
+- `steps`：本轮工具调用数，用来和基线比快慢。
+- `perfect`：全程没有失败命令、没有返工、用户没否定。
+- 坏行会被跳过，不影响其余记录。
+
+**Markdown**：`--md` 输出标题 / 路径 / 汇总 / 表格 / 漏卡 / 该复核；斜杠命令 `proc-stats` 默认带 `--md`，所以贴进会话就是一张表（`--json` 优先）。
+
+**只读**：默认不改卡、不删卡；只有 `--record` 会往 `_stats/events.jsonl` 追加一行。输出里的会话片段可能含绝对路径，贴出去前自行脱敏。
 
 ---
 

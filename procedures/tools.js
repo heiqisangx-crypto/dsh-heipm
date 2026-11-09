@@ -9,6 +9,7 @@ const toolPath = name => path.join(TOOLS_DIR, name)
 
 const COMMAND_TIMEOUT_MS = 60_000
 const PROBE_WINDOW_MS = 8_000
+const STATS_TIMEOUT_MS = 120_000
 
 function projectOf(ctx, invocation) {
   const sessionId = invocation && invocation.agent ? String(invocation.agent.id) : ''
@@ -87,6 +88,15 @@ export const PROCEDURE_COMMANDS = [
     input: { hint: '缺省执行 list 列出工作区；也可写 calls <正则> / user <正则> / say <正则>' },
     script: 'scan-sessions.mjs',
     args: (dir, tokens) => (tokens.length ? tokens : ['list']),
+  },
+  {
+    name: 'proc-stats',
+    title: '卡片使用指标',
+    description: '算新鲜度 / 检索命中率 / 打开率 / 成功率 / 效率（读会话日志，只读，统计全部工作区）',
+    input: { hint: '直接回车统计全部工作区；也可补充 --workspace <slug> / --days 90 / --min-steps 3 / --penalty 5 / --json' },
+    args: (dir, tokens) => ['--procedures', dir, ...(tokens.includes('--json') || tokens.includes('--md') ? tokens : ['--md', ...tokens])],
+    script: 'procedures-stats.mjs',
+    timeoutMs: STATS_TIMEOUT_MS,
   },
   {
     name: 'proc-probe',
