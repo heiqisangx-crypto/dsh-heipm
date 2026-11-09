@@ -71,7 +71,7 @@ test/                    零依赖测试
 
 ## 安装
 
-要求：DSH `>=0.2.0-rc.2 <0.2.2-0`（见 `engines.dsh`），Node `>=22.19`。
+要求：DSH `>=0.2.2-rc.1 <0.2.3-0`（见 `engines.dsh`），Node `^22.19 || >=24`。
 本项目**只从 GitHub 分发，未发布 npm**。
 
 1. 克隆到任意目录：
@@ -137,7 +137,7 @@ npm test
 
 ## 兼容性
 
-- `engines.dsh`：`>=0.2.0-rc.2 <0.2.2-0`；开发与实测版本为 `0.2.1-rc.3`。
+- `engines.dsh`：`>=0.2.2-rc.1 <0.2.3-0`，与 `dsh-ops` 0.5 系列同一基线；0.2.2-rc.1 已按本文档静态核对锚点，运行时待页面验收（上一支持线为 `0.2.1-rc.x`）。
 - 客户端插件依赖 `slots`、`locale`、`workspaces` 服务；右键菜单依赖侧边栏工作区行的 `data-row-key`。
 - 所有脆弱依赖集中在 `client.js` 的 `HOST_CONTRACT` 与 [docs/HOST_CONTRACT.md](docs/HOST_CONTRACT.md)；DSH 升级后按该文档逐项核对。
 - 某个 UI 特性异常时可一键关闭，刷新后回到宿主原生行为：

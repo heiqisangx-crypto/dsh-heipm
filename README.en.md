@@ -71,7 +71,7 @@ test/                    Dependency-free tests
 
 ## Install
 
-Requires DSH `>=0.2.0-rc.2 <0.2.2-0` (see `engines.dsh`) and Node `>=22.19`.
+Requires DSH `>=0.2.2-rc.1 <0.2.3-0` (see `engines.dsh`) and Node `^22.19 || >=24`.
 This project is distributed **from GitHub only; it is not published to npm**.
 
 1. Clone it anywhere:
@@ -137,7 +137,7 @@ Tests cover the host data layer (collect / save / delete / quest list / per-modu
 
 ## Compatibility
 
-- `engines.dsh`: `>=0.2.0-rc.2 <0.2.2-0`; developed and verified on `0.2.1-rc.3`.
+- `engines.dsh`: `>=0.2.2-rc.1 <0.2.3-0`, the same baseline as `dsh-ops` 0.5. Anchors are statically checked on `0.2.2-rc.1`; runtime acceptance is still pending (previous line: `0.2.1-rc.x`).
 - The client plugin depends on the `slots`, `locale` and `workspaces` services; the context menu relies on the sidebar's `data-row-key` attribute.
 - Every fragile dependency lives in `HOST_CONTRACT` in `client.js` and in [docs/HOST_CONTRACT.md](docs/HOST_CONTRACT.md). Re-check that document after each DSH upgrade.
 - A broken UI feature can be disabled and falls back to native behaviour after a refresh:
