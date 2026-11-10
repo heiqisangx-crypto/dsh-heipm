@@ -1599,6 +1599,14 @@ window.__ModuleLoader__.load({
       for (const node of root.querySelectorAll(HOST_CONTRACT.chatFlow)) {
         if (found.indexOf(node) < 0) found.push(node)
       }
+      /* 兜底：槽位属性哪天不在了，退回认最外层的 [data-chat-flow] 列。 */
+      if (!found.length) {
+        for (const node of root.querySelectorAll('[data-chat-flow]')) {
+          const parent = node.parentElement
+          if (parent && parent.closest('[data-chat-flow]')) continue
+          found.push(node)
+        }
+      }
       return found
     }
 
