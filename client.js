@@ -1857,16 +1857,22 @@ window.__ModuleLoader__.load({
         attributes: true,
         attributeFilter: ['data-state', 'data-streaming', 'data-expanded'],
       })
-      /* 不再「点外面就关」：抽屉只认 ×、Esc、再点同一步。 */
+      /* 点外面关闭回来了；刚打开的 250ms 内不算数（closeProcessDrawer 里挡）。 */
+      const onPointerDown = event => {
+        const target = event && event.target
+        if (target && target.closest && (target.closest('.' + PROC_STEP_CLASS) || target.closest('.' + PROC_POP_CLASS))) return
+        closeProcessDrawer(doc, 'outside')
+      }
       const onKeyDown = event => {
         if (event && event.key === 'Escape') closeProcessDrawer(doc, 'escape')
       }
+      doc.addEventListener('mousedown', onPointerDown, true)
       doc.addEventListener('keydown', onKeyDown, true)
       /* 诊断面：页面里量「收纳了几组、藏了几行」，比肉眼猜可靠。 */
       if (typeof window !== 'undefined') {
         window.__heipmProc = {
           report: () => ({
-            build: 'a2.7',
+            build: 'a2.8',
             flows: doc.querySelectorAll(HOST_CONTRACT.chatFlow).length,
             rows: doc.querySelectorAll(HOST_CONTRACT.flowRow).length,
             shelves: doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']').length,
@@ -1890,6 +1896,7 @@ window.__ModuleLoader__.load({
       return () => {
         stopped = true
         observer.disconnect()
+        doc.removeEventListener('mousedown', onPointerDown, true)
         doc.removeEventListener('keydown', onKeyDown, true)
         if (typeof window !== 'undefined' && window.__heipmProc) delete window.__heipmProc
         closeProcessDrawer(doc, 'dispose')
