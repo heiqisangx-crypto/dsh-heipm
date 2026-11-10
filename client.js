@@ -1331,19 +1331,29 @@ window.__ModuleLoader__.load({
     const PROC_ROW_CLASS = 'hm-proc-row'
     const PROC_SHELF_CLASS = 'hm-proc-shelf'
     const PROC_STEP_CLASS = 'hm-proc-step'
-    const PROC_POP_CLASS = 'hm-proc-pop'
-    const PROC_POP_HEAD_CLASS = 'hm-proc-pop-head'
+    const PROC_POP_CLASS = 'hm-proc-drawer'
+    const PROC_POP_HEAD_CLASS = 'hm-proc-drawer-head'
+    const PROC_DRAWER_TITLE_CLASS = 'hm-proc-drawer-title'
+    const PROC_DRAWER_META_CLASS = 'hm-proc-drawer-meta'
+    const PROC_DRAWER_BODY_CLASS = 'hm-proc-drawer-body'
+    /* 每步的起止时间：只认我们亲眼看到「running → 停」的步骤，历史步骤没有这段数据。 */
+    const PROC_STEP_TIMES = typeof Map === 'function' ? new Map() : null
 
     const PROCESS_SHELF_CSS = `
 .hm-proc-row{display:none!important}
 .hm-proc-shelf{align-items:center;align-self:flex-start;background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.28);border-radius:999px;display:inline-flex;flex-wrap:wrap;gap:2px;margin:2px 0 6px;max-width:100%;padding:3px 6px}
-.hm-proc-step{align-items:center;appearance:none;background:transparent;border:0;border-radius:8px;box-sizing:border-box;color:#a8adb8;cursor:pointer;display:inline-flex;height:24px;justify-content:center;line-height:1;padding:0;width:24px}
+.hm-proc-step{align-items:center;appearance:none;background:transparent;border:0;border-radius:9px;box-sizing:border-box;color:#a8adb8;cursor:pointer;display:inline-flex;height:32px;justify-content:center;line-height:1;padding:0;width:32px}
 .hm-proc-step:hover{background:rgba(255,159,67,.18);color:#ff9f43}
 .hm-proc-step[aria-expanded="true"]{background:rgba(255,159,67,.22);color:#ff9f43}
-.hm-proc-step svg{display:block;fill:currentColor;height:14px;width:14px}
-.hm-proc-pop{backdrop-filter:none;background:#1b1f26;border:1px solid rgba(148,163,184,.35);border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.5);box-sizing:border-box;color:#eceef2;font-size:13px;isolation:isolate;line-height:1.65;max-height:60vh;min-width:220px;overflow:auto;padding:12px 14px;position:fixed;z-index:1400}
-.hm-proc-pop[hidden]{display:none}
-.hm-proc-pop-head{border-bottom:1px solid rgba(148,163,184,.22);color:#a8adb8;font-size:12px;margin:0 0 8px;padding-bottom:6px}
+.hm-proc-step svg{display:block;fill:currentColor;height:19px;width:19px}
+.hm-proc-drawer{background:#1b1f26;border-left:1px solid rgba(148,163,184,.3);box-shadow:-18px 0 48px rgba(0,0,0,.45);box-sizing:border-box;color:#eceef2;display:flex;flex-direction:column;font-size:13px;height:100vh;line-height:1.65;max-width:92vw;position:fixed;right:0;top:0;width:520px;z-index:1400}
+.hm-proc-drawer[hidden]{display:none}
+.hm-proc-drawer-head{align-items:center;border-bottom:1px solid rgba(148,163,184,.22);display:flex;flex:0 0 auto;gap:10px;padding:14px 16px}
+.hm-proc-drawer-title{color:#eceef2;font-size:14px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hm-proc-drawer-meta{color:#a8adb8;font-size:12px;margin-left:auto;white-space:nowrap}
+.hm-proc-drawer-close{appearance:none;background:transparent;border:0;border-radius:8px;color:#a8adb8;cursor:pointer;flex:0 0 auto;font-size:18px;height:28px;line-height:1;padding:0;width:28px}
+.hm-proc-drawer-close:hover{background:rgba(148,163,184,.14);color:#eceef2}
+.hm-proc-drawer-body{flex:1 1 auto;min-height:0;overflow:auto;padding:14px 16px}
 `
 
     /* 一行算「过程」还是「正文」：只看 kind / groupPart / 内容特征，不认哈希类名。 */
@@ -1464,77 +1474,120 @@ window.__ModuleLoader__.load({
       setTimeout(fn, 50)
     }
 
-    function ensureProcessPopover(doc) {
+    /* 一步的耗时：只有「我们看着它从 running 变成结束」的步骤才有数。 */
+    function stepTiming(key) {
+      if (!PROC_STEP_TIMES || key === null || key === undefined) return null
+      return PROC_STEP_TIMES.get(String(key)) || null
+    }
+
+    function formatStepTime(ms) {
+      if (!(ms >= 0)) return ''
+      if (ms < 1000) return Math.round(ms) + 'ms'
+      const seconds = ms / 1000
+      if (seconds < 60) return (seconds < 10 ? seconds.toFixed(1) : String(Math.round(seconds))) + 's'
+      return Math.floor(seconds / 60) + 'm ' + Math.round(seconds % 60) + 's'
+    }
+
+    /* 单步没有 token 数据，能拿到的只有整轮用量；有就顺带显示，没有就不显示。 */
+    function turnUsageText(row) {
+      const turn = row.getAttribute('data-chat-turn')
+      if (turn === null || turn === undefined || !row.parentElement) return ''
+      let tail = null
+      for (const node of row.parentElement.querySelectorAll('[data-chat-flow-kind="turn-tail"]')) {
+        if (node.getAttribute('data-chat-turn') === String(turn)) {
+          tail = node
+          break
+        }
+      }
+      if (!tail) return ''
+      const text = String(tail.textContent || '').replace(/\s+/g, ' ').trim()
+      return text.length > 48 ? '' : text
+    }
+
+    function ensureProcessDrawer(doc) {
       const existing = doc.querySelector('.' + PROC_POP_CLASS)
       if (existing) return existing
-      const pop = doc.createElement('div')
-      pop.className = PROC_POP_CLASS
-      pop.setAttribute('role', 'dialog')
-      pop.setAttribute('data-plugin-ui', 'heipm:process-shelf')
-      pop.hidden = true
-      doc.body.appendChild(pop)
-      return pop
-    }
-
-    function fillProcessPopover(pop, row, doc) {
+      const drawer = doc.createElement('aside')
+      drawer.className = PROC_POP_CLASS
+      drawer.setAttribute('role', 'dialog')
+      drawer.setAttribute('aria-label', '步骤详情')
+      drawer.setAttribute('data-plugin-ui', 'heipm:process-shelf')
+      drawer.hidden = true
       const head = doc.createElement('div')
       head.className = PROC_POP_HEAD_CLASS
-      head.textContent = rowSummary(row) || '过程'
-      const body = detailBodyOf(row)
-      pop.textContent = ''
-      pop.appendChild(head)
-      if (body && typeof body.cloneNode === 'function') pop.appendChild(body.cloneNode(true))
-      else pop.appendChild(doc.createTextNode('这一步没有可显示的内容'))
+      const title = doc.createElement('span')
+      title.className = PROC_DRAWER_TITLE_CLASS
+      const meta = doc.createElement('span')
+      meta.className = PROC_DRAWER_META_CLASS
+      const close = doc.createElement('button')
+      close.type = 'button'
+      close.className = 'hm-proc-drawer-close'
+      close.setAttribute('aria-label', '关闭')
+      close.textContent = '×'
+      close.addEventListener('click', () => closeProcessDrawer(doc))
+      head.appendChild(title)
+      head.appendChild(meta)
+      head.appendChild(close)
+      const body = doc.createElement('div')
+      body.className = PROC_DRAWER_BODY_CLASS
+      drawer.appendChild(head)
+      drawer.appendChild(body)
+      doc.body.appendChild(drawer)
+      return drawer
     }
 
-    function positionProcessPopover(pop, anchor, doc) {
-      const win = doc.defaultView || window
-      const width = win && win.innerWidth ? win.innerWidth : 1200
-      const height = win && win.innerHeight ? win.innerHeight : 800
-      pop.style.width = Math.min(560, width - 24) + 'px'
-      pop.style.left = '8px'
-      pop.style.top = '8px'
-      const rect = anchor.getBoundingClientRect()
-      const box = pop.getBoundingClientRect ? pop.getBoundingClientRect() : { width: 0, height: 0 }
-      let left = Math.min(Math.max(8, rect.left), Math.max(8, width - box.width - 8))
-      let top = rect.bottom + 8
-      if (top + box.height > height - 8) top = Math.max(8, rect.top - box.height - 8)
-      pop.style.left = left + 'px'
-      pop.style.top = top + 'px'
+    function fillProcessDrawer(drawer, row, doc) {
+      const title = drawer.querySelector('.' + PROC_DRAWER_TITLE_CLASS)
+      const meta = drawer.querySelector('.' + PROC_DRAWER_META_CLASS)
+      const body = drawer.querySelector('.' + PROC_DRAWER_BODY_CLASS)
+      if (title) title.textContent = rowSummary(row) || '过程'
+      const parts = []
+      const tool = row.querySelector('[data-tool]')
+      if (tool) parts.push(tool.getAttribute('data-tool'))
+      const timing = stepTiming(row.getAttribute('data-chat-flow-key'))
+      if (timing && timing.end) parts.push('耗时 ' + formatStepTime(timing.end - timing.start))
+      else if (timing) parts.push('进行中')
+      const usage = turnUsageText(row)
+      if (usage) parts.push(usage)
+      if (meta) meta.textContent = parts.join(' · ')
+      const detail = detailBodyOf(row)
+      if (!body) return
+      body.textContent = ''
+      if (detail && typeof detail.cloneNode === 'function') body.appendChild(detail.cloneNode(true))
+      else body.appendChild(doc.createTextNode('这一步没有可显示的内容'))
     }
 
-    function closeProcessPopover(doc) {
-      const pop = doc.querySelector('.' + PROC_POP_CLASS)
-      if (!pop) return
-      pop.hidden = true
-      pop.removeAttribute('data-hm-proc-owner')
+    function closeProcessDrawer(doc) {
+      const drawer = doc.querySelector('.' + PROC_POP_CLASS)
+      if (!drawer) return
+      drawer.hidden = true
+      drawer.removeAttribute('data-hm-proc-owner')
       for (const button of doc.querySelectorAll('.' + PROC_STEP_CLASS + '[aria-expanded="true"]')) {
         button.setAttribute('aria-expanded', 'false')
       }
     }
 
     function toggleProcessDetail(button, row, doc) {
-      const pop = ensureProcessPopover(doc)
-      if (!pop.hidden && pop.getAttribute('data-hm-proc-owner') === button.getAttribute('data-hm-proc-id')) {
-        closeProcessPopover(doc)
+      const drawer = ensureProcessDrawer(doc)
+      if (!drawer.hidden && drawer.getAttribute('data-hm-proc-owner') === button.getAttribute('data-hm-proc-id')) {
+        closeProcessDrawer(doc)
         return
       }
-      closeProcessPopover(doc)
+      closeProcessDrawer(doc)
       button.setAttribute('aria-expanded', 'true')
       /* 详情是「点开才挂载」的：先借宿主的开关把正文挂上，克隆完再收回，避免长期占着 DOM。 */
       const expanding = expandProcessRow(row)
       const show = attempt => {
         if (!button.isConnected || button.getAttribute('data-hm-proc-id') === null) return
         const body = detailBodyOf(row)
-        /* 正文是条件挂载的：宿主还没提交完就再等一帧，别急着把整行塞进浮层。 */
+        /* 正文是条件挂载的：宿主还没提交完就再等一帧，别急着把整行塞进抽屉。 */
         if (expanding && body === row && attempt < 2) {
           setTimeout(() => show(attempt + 1), 120)
           return
         }
-        fillProcessPopover(pop, row, doc)
-        pop.setAttribute('data-hm-proc-owner', button.getAttribute('data-hm-proc-id'))
-        pop.hidden = false
-        positionProcessPopover(pop, button, doc)
+        fillProcessDrawer(drawer, row, doc)
+        drawer.setAttribute('data-hm-proc-owner', button.getAttribute('data-hm-proc-id'))
+        drawer.hidden = false
         if (expanding) collapseProcessRow(row)
       }
       if (expanding) later(() => show(0))
@@ -1560,6 +1613,28 @@ window.__ModuleLoader__.load({
         toggleProcessDetail(button, row, doc)
       })
       return button
+    }
+
+    /* 步骤从「运行中」变成「结束」时记下耗时；挂载时就已结束的历史步骤不编数据。 */
+    function trackStepTiming(row) {
+      if (!PROC_STEP_TIMES) return
+      const key = row.getAttribute('data-chat-flow-key')
+      if (key === null || key === undefined) return
+      const running = !!(row.querySelector('[data-state="running"]') || row.querySelector('[data-streaming]'))
+      const now = Date.now()
+      const entry = PROC_STEP_TIMES.get(key)
+      if (!entry) {
+        if (running) PROC_STEP_TIMES.set(key, { start: now, end: 0 })
+        return
+      }
+      if (running) {
+        if (entry.end) {
+          entry.start = now
+          entry.end = 0
+        }
+        return
+      }
+      if (!entry.end) entry.end = now
     }
 
     function decorateProcessShelf(first, members, doc) {
@@ -1626,6 +1701,10 @@ window.__ModuleLoader__.load({
       const rows = topFlowRows(container)
       if (!rows.length) return 0
       const roles = rows.map((row, index) => roleOfFlowRow(row, index === rows.length - 1))
+      /* 计时要在「签名没变」的提前返回之前做，否则步骤跑完了也拿不到结束时间。 */
+      for (let index = 0; index < rows.length; index += 1) {
+        if (roles[index] === 'process') trackStepTiming(rows[index])
+      }
       const signature = rows.map(row => row.getAttribute('data-chat-flow-key')).join('|') + '#' + roles.join(',')
       /* React 重建行后旧元素会丢 class，所以「签名没变」也得确认隐藏还在，不能直接跳过。 */
       const settled = roles.every((role, index) => role !== 'process' || rows[index].classList.contains(PROC_ROW_CLASS))
@@ -1703,6 +1782,10 @@ window.__ModuleLoader__.load({
       }
       const observer = new MutationObserver(records => {
         for (const record of records) {
+          if (record.type === 'attributes') {
+            schedule()
+            return
+          }
           for (const node of record.addedNodes) {
             if (node.nodeType !== 1) continue
             const marked = node.getAttribute && node.getAttribute('data-chat-flow-key') !== null
@@ -1718,14 +1801,19 @@ window.__ModuleLoader__.load({
           }
         }
       })
-      observer.observe(doc.body, { childList: true, subtree: true })
+      observer.observe(doc.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['data-state', 'data-streaming', 'data-expanded'],
+      })
       const onPointerDown = event => {
         const target = event && event.target
-        if (target && target.closest && target.closest('.' + PROC_STEP_CLASS)) return
-        closeProcessPopover(doc)
+        if (target && target.closest && (target.closest('.' + PROC_STEP_CLASS) || target.closest('.' + PROC_POP_CLASS))) return
+        closeProcessDrawer(doc)
       }
       const onKeyDown = event => {
-        if (event && event.key === 'Escape') closeProcessPopover(doc)
+        if (event && event.key === 'Escape') closeProcessDrawer(doc)
       }
       doc.addEventListener('mousedown', onPointerDown, true)
       doc.addEventListener('keydown', onKeyDown, true)
@@ -1733,12 +1821,13 @@ window.__ModuleLoader__.load({
       if (typeof window !== 'undefined') {
         window.__heipmProc = {
           report: () => ({
-            build: 'a2.2',
+            build: 'a2.3',
             flows: doc.querySelectorAll(HOST_CONTRACT.chatFlow).length,
             rows: doc.querySelectorAll(HOST_CONTRACT.flowRow).length,
             shelves: doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']').length,
             steps: doc.querySelectorAll('.' + PROC_STEP_CLASS).length,
             hidden: doc.querySelectorAll('.' + PROC_ROW_CLASS).length,
+            timed: PROC_STEP_TIMES ? PROC_STEP_TIMES.size : 0,
           }),
           rescan: () => run(),
         }
@@ -1750,9 +1839,9 @@ window.__ModuleLoader__.load({
         doc.removeEventListener('mousedown', onPointerDown, true)
         doc.removeEventListener('keydown', onKeyDown, true)
         if (typeof window !== 'undefined' && window.__heipmProc) delete window.__heipmProc
-        closeProcessPopover(doc)
-        const pop = doc.querySelector('.' + PROC_POP_CLASS)
-        if (pop) pop.remove()
+        closeProcessDrawer(doc)
+        const drawer = doc.querySelector('.' + PROC_POP_CLASS)
+        if (drawer) drawer.remove()
         for (const shelf of doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']')) shelf.remove()
         for (const row of doc.querySelectorAll('.' + PROC_ROW_CLASS)) row.classList.remove(PROC_ROW_CLASS)
         dropStyles()
