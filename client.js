@@ -1338,6 +1338,8 @@ window.__ModuleLoader__.load({
     const PROC_DRAWER_BODY_CLASS = 'hm-proc-drawer-body'
     /* 每步的起止时间：只认我们亲眼看到「running → 停」的步骤，历史步骤没有这段数据。 */
     const PROC_STEP_TIMES = typeof Map === 'function' ? new Map() : null
+    /* 刚打开的抽屉不该被同一次手势里的「点外面」立刻关掉。 */
+    let PROC_DRAWER_OPENED_AT = 0
 
     const PROCESS_SHELF_CSS = `
 .hm-proc-row{display:none!important}
@@ -1585,6 +1587,13 @@ window.__ModuleLoader__.load({
     function closeProcessDrawer(doc, reason) {
       const drawer = doc.querySelector('.' + PROC_POP_CLASS)
       if (!drawer || drawer.hidden) return
+      /* 打开后一小段窗口内，非显式关闭一律忽略（防同一手势里被当成「点外面」）。 */
+      if ((reason === 'outside' || reason === 'toggle-same') && Date.now() - PROC_DRAWER_OPENED_AT < 250) {
+        if (typeof window !== 'undefined' && window.__heipmProc) {
+          window.__heipmProc.lastBlockedClose = { reason: reason, at: Date.now() }
+        }
+        return
+      }
       /* 诊断：记下是谁把抽屉关掉的，别靠猜。 */
       if (typeof window !== 'undefined' && window.__heipmProc) {
         window.__heipmProc.lastClose = { reason: reason || 'unknown', at: Date.now() }
@@ -1596,31 +1605,35 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /* 先开抽屉、再补内容：中间不经过「关闭」，避免一闪即关。 */
     function toggleProcessDetail(button, row, doc) {
       const drawer = ensureProcessDrawer(doc)
-      if (!drawer.hidden && drawer.getAttribute('data-hm-proc-owner') === button.getAttribute('data-hm-proc-id')) {
+      const id = button.getAttribute('data-hm-proc-id')
+      if (!drawer.hidden && drawer.getAttribute('data-hm-proc-owner') === id) {
         closeProcessDrawer(doc, 'toggle-same')
         return
       }
-      closeProcessDrawer(doc, 'toggle-other')
+      for (const other of doc.querySelectorAll('.' + PROC_STEP_CLASS + '[aria-expanded="true"]')) {
+        other.setAttribute('aria-expanded', 'false')
+      }
       button.setAttribute('aria-expanded', 'true')
-      /* 详情是「点开才挂载」的：先借宿主的开关把正文挂上，克隆完再收回，避免长期占着 DOM。 */
-      const expanding = expandProcessRow(row)
-      const show = attempt => {
-        if (!row.isConnected) return
+      drawer.setAttribute('data-hm-proc-owner', id)
+      PROC_DRAWER_OPENED_AT = Date.now()
+      fillProcessDrawer(drawer, row, doc)
+      drawer.hidden = false
+      /* 详情是「点开才挂载」的：正文没挂上就借宿主开关展开，克隆完再收回。 */
+      if (!expandProcessRow(row)) return
+      const fill = attempt => {
+        if (drawer.hidden || !row.isConnected) return
         const body = detailBodyOf(row)
-        /* 正文是条件挂载的：宿主还没提交完就再等一帧，别急着把整行塞进抽屉。 */
-        if (expanding && body === row && attempt < 2) {
-          setTimeout(() => show(attempt + 1), 120)
+        if (body === row && attempt < 2) {
+          setTimeout(() => fill(attempt + 1), 120)
           return
         }
         fillProcessDrawer(drawer, row, doc)
-        drawer.setAttribute('data-hm-proc-owner', button.getAttribute('data-hm-proc-id'))
-        drawer.hidden = false
-        if (expanding) collapseProcessRow(row)
+        collapseProcessRow(row)
       }
-      if (expanding) later(() => show(0))
-      else show(0)
+      later(() => fill(0))
     }
 
     function shelfButton(row, doc) {
