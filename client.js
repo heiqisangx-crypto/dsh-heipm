@@ -1341,7 +1341,7 @@ window.__ModuleLoader__.load({
 .hm-proc-step:hover{background:rgba(255,159,67,.18);color:#ff9f43}
 .hm-proc-step[aria-expanded="true"]{background:rgba(255,159,67,.22);color:#ff9f43}
 .hm-proc-step svg{display:block;fill:currentColor;height:14px;width:14px}
-.hm-proc-pop{background:var(--dsw-specific-menu,#171b21);border:1px solid rgba(148,163,184,.35);border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.5);box-sizing:border-box;color:#eceef2;font-size:13px;line-height:1.65;max-height:60vh;min-width:220px;overflow:auto;padding:12px 14px;position:fixed;z-index:1400}
+.hm-proc-pop{backdrop-filter:none;background:#1b1f26;border:1px solid rgba(148,163,184,.35);border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.5);box-sizing:border-box;color:#eceef2;font-size:13px;isolation:isolate;line-height:1.65;max-height:60vh;min-width:220px;overflow:auto;padding:12px 14px;position:fixed;z-index:1400}
 .hm-proc-pop[hidden]{display:none}
 .hm-proc-pop-head{border-bottom:1px solid rgba(148,163,184,.22);color:#a8adb8;font-size:12px;margin:0 0 8px;padding-bottom:6px}
 `
