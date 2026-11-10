@@ -63,7 +63,8 @@ function truthy(name, value) {
 const row = (kind, part, extra) => ({ kind, part: part || '', hasThinking: false, hasTool: false, hasProse: false, ...extra })
 
 equal('tool-call is process', t.classifyFlowRow(row('tool-call')), 'process')
-equal('turn-process summary is process', t.classifyFlowRow(row('turn-process')), 'process')
+equal('turn-process summary is hidden but gets no icon', t.classifyFlowRow(row('turn-process')), 'skip')
+equal('a skipped summary row does not split its group', t.planProcessGroups(['process', 'skip', 'process', 'prose']), [[0, 2]])
 equal('reasoning half is process', t.classifyFlowRow(row('assistant-step', 'reasoning')), 'process')
 equal('response half is prose', t.classifyFlowRow(row('assistant-step', 'response')), 'prose')
 equal('unsplit step with only thinking is process', t.classifyFlowRow(row('assistant-step', '', { hasThinking: true })), 'process')

@@ -1359,7 +1359,9 @@ window.__ModuleLoader__.load({
     /* 一行算「过程」还是「正文」：只看 kind / groupPart / 内容特征，不认哈希类名。 */
     function classifyFlowRow(row) {
       const kind = row && row.kind
-      if (kind === 'tool-call' || kind === 'turn-process') return 'process'
+      /* turn-process 是宿主自己的「已折叠 N 行」摘要按钮，不是一步：藏掉，但不给图标。 */
+      if (kind === 'turn-process') return 'skip'
+      if (kind === 'tool-call') return 'process'
       if (kind === 'assistant-step') {
         if (row.part === 'reasoning') return 'process'
         if (row.part === 'response') return 'prose'
@@ -1369,12 +1371,14 @@ window.__ModuleLoader__.load({
       return 'prose'
     }
 
-    /* 连续的过程行算一组；中间夹一条正文就断开。 */
+    /* 连续的过程行算一组；中间夹一条正文就断开，「跳过」的行不打断。 */
     function planProcessGroups(roles) {
       const groups = []
       let current = []
       for (let index = 0; index < roles.length; index += 1) {
-        if (roles[index] === 'process') current.push(index)
+        const role = roles[index]
+        if (role === 'process') current.push(index)
+        else if (role === 'skip') continue
         else if (current.length) {
           groups.push(current)
           current = []
@@ -1417,8 +1421,16 @@ window.__ModuleLoader__.load({
     }
 
     /* 图标直接借宿主的：行标题前方那个 svg；借不到才画一个自己的。 */
+    /* 只借「行首图标」：展开箭头（chevron）也是 svg，排到它就会显示成 ^。 */
     function rowIcon(row, doc) {
-      const host = row.querySelector('[data-disclosure-header] svg') || row.querySelector('svg')
+      let host = row.querySelector('[class*="_leading"] svg')
+      if (!host) {
+        for (const svg of row.querySelectorAll('svg')) {
+          if (svg.closest && svg.closest('[class*="chevron"]')) continue
+          host = svg
+          break
+        }
+      }
       if (host && typeof host.cloneNode === 'function') {
         const clone = host.cloneNode(true)
         clone.setAttribute('aria-hidden', 'true')
@@ -1553,8 +1565,8 @@ window.__ModuleLoader__.load({
       const detail = detailBodyOf(row)
       if (!body) return
       body.textContent = ''
-      if (detail && typeof detail.cloneNode === 'function') body.appendChild(detail.cloneNode(true))
-      else body.appendChild(doc.createTextNode('这一步没有可显示的内容'))
+      if (detail && detail !== row && typeof detail.cloneNode === 'function') body.appendChild(detail.cloneNode(true))
+      else body.appendChild(doc.createTextNode('这一步没有可展开的正文'))
     }
 
     function closeProcessDrawer(doc) {
@@ -1578,7 +1590,7 @@ window.__ModuleLoader__.load({
       /* 详情是「点开才挂载」的：先借宿主的开关把正文挂上，克隆完再收回，避免长期占着 DOM。 */
       const expanding = expandProcessRow(row)
       const show = attempt => {
-        if (!button.isConnected || button.getAttribute('data-hm-proc-id') === null) return
+        if (!row.isConnected) return
         const body = detailBodyOf(row)
         /* 正文是条件挂载的：宿主还没提交完就再等一帧，别急着把整行塞进抽屉。 */
         if (expanding && body === row && attempt < 2) {
@@ -1707,11 +1719,16 @@ window.__ModuleLoader__.load({
       }
       const signature = rows.map(row => row.getAttribute('data-chat-flow-key')).join('|') + '#' + roles.join(',')
       /* React 重建行后旧元素会丢 class，所以「签名没变」也得确认隐藏还在，不能直接跳过。 */
-      const settled = roles.every((role, index) => role !== 'process' || rows[index].classList.contains(PROC_ROW_CLASS))
+      const settled = roles.every((role, index) => role === 'prose' || rows[index].classList.contains(PROC_ROW_CLASS))
       if (settled && PROCESS_KEYS && PROCESS_KEYS.get(container) === signature) return 0
       const groups = planProcessGroups(roles)
       const live = new Set()
       let created = 0
+      for (let index = 0; index < rows.length; index += 1) {
+        if (roles[index] !== 'skip') continue
+        live.add(rows[index])
+        rows[index].classList.add(PROC_ROW_CLASS)
+      }
       for (const group of groups) {
         const members = group.map(index => rows[index])
         for (const row of members) {
@@ -1821,7 +1838,7 @@ window.__ModuleLoader__.load({
       if (typeof window !== 'undefined') {
         window.__heipmProc = {
           report: () => ({
-            build: 'a2.3',
+            build: 'a2.4',
             flows: doc.querySelectorAll(HOST_CONTRACT.chatFlow).length,
             rows: doc.querySelectorAll(HOST_CONTRACT.flowRow).length,
             shelves: doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']').length,
