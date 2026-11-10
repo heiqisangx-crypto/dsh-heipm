@@ -86,7 +86,7 @@ truthy('shelf is its own pill container', t.PROCESS_SHELF_CSS.includes('.hm-proc
 truthy('step buttons carry an expanded state', t.PROCESS_SHELF_CSS.includes('.hm-proc-step[aria-expanded="true"]'))
 truthy('the detail panel is a right-side fixed drawer', t.PROCESS_SHELF_CSS.includes('.hm-proc-drawer{') && t.PROCESS_SHELF_CSS.includes('position:fixed') && t.PROCESS_SHELF_CSS.includes('right:0'))
 truthy('the drawer can be hidden', t.PROCESS_SHELF_CSS.includes('.hm-proc-drawer[hidden]{display:none}'))
-truthy('the drawer stays opaque', t.PROCESS_SHELF_CSS.includes('background:#1b1f26'))
+truthy('the drawer stays opaque (theme var with a solid fallback)', t.PROCESS_SHELF_CSS.includes('background:var(--hm-panel, #1b1f26)'))
 truthy('step icons are big enough to hit', t.PROCESS_SHELF_CSS.includes('.hm-proc-step{') && t.PROCESS_SHELF_CSS.includes('height:32px') && t.PROCESS_SHELF_CSS.includes('width:19px'))
 
 truthy('rows are recognised by semantic kind', t.HOST_CONTRACT.flowRow.includes('data-chat-flow-kind'))

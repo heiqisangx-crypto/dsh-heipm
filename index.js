@@ -3,9 +3,14 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
-import { mkdir, readFile, stat, unlink } from 'node:fs/promises'
+import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 
 const ROUTE = '/dsh-heipm/api'
+/* 主题存在用户目录而不是某个项目里：插件只有一个外观，跟着人走。 */
+const THEME_FILE = path.join(os.homedir(), '.dsh', 'dsh-heipm', 'theme.json')
+const THEME_COLOR_KEYS = ['accent', 'panel', 'card', 'ink', 'dim', 'line']
+/* 空字符串 = 不覆盖，CSS 回落到宿主主题令牌。 */
+const THEME_DEFAULTS = { accent: '', panel: '', card: '', ink: '', dim: '', line: '', radius: 10 }
 const MAX_BODY_BYTES = 1_000_000
 const MAX_FILE_BYTES = 512 * 1024
 const MAX_LISTING_ENTRIES = 400
@@ -76,6 +81,11 @@ export const __test = {
   applyQuestState,
   parseQuestMarkdown,
   questListPath,
+  normalizeTheme,
+  readTheme,
+  writeTheme,
+  THEME_DEFAULTS,
+  THEME_COLOR_KEYS,
 }
 
 async function handle(ctx, req, res) {
@@ -132,6 +142,14 @@ async function handle(ctx, req, res) {
       send(res, 200, { ok: true, ...opened })
       return
     }
+    if (payload.action === 'theme.get') {
+      send(res, 200, { ok: true, theme: await readTheme() })
+      return
+    }
+    if (payload.action === 'theme.set') {
+      send(res, 200, { ok: true, theme: await writeTheme(payload.theme) })
+      return
+    }
     if (payload.action === 'markdown') {
       send(res, 200, { ok: true, ...(await markdownState(ctx)) })
       return
@@ -157,6 +175,38 @@ async function handle(ctx, req, res) {
     const status = error && error.statusCode ? error.statusCode : 500
     send(res, status, { ok: false, error: messageOf(error), code: error && error.code })
   }
+}
+
+/**
+ * 主题值只收 `#rrggbb`；空串表示「跟随宿主主题」，圆角夹在 0–24。
+ */
+function normalizeTheme(input) {
+  const source = input && typeof input === 'object' ? input : {}
+  const theme = {}
+  for (const key of THEME_COLOR_KEYS) {
+    const value = typeof source[key] === 'string' ? source[key].trim() : ''
+    theme[key] = /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : ''
+  }
+  const radius = Number(source.radius)
+  theme.radius = Number.isFinite(radius) ? Math.min(24, Math.max(0, Math.round(radius))) : THEME_DEFAULTS.radius
+  return theme
+}
+
+/** 读不到或坏文件一律回默认，绝不让外观把插件拖挂。 */
+async function readTheme(file = THEME_FILE) {
+  try {
+    const raw = await readFile(file, 'utf8')
+    return normalizeTheme(JSON.parse(raw))
+  } catch {
+    return { ...THEME_DEFAULTS }
+  }
+}
+
+async function writeTheme(input, file = THEME_FILE) {
+  const theme = normalizeTheme(input)
+  await mkdir(path.dirname(file), { recursive: true })
+  await writeFile(file, JSON.stringify(theme, null, 2) + '\n', 'utf8')
+  return theme
 }
 
 /**

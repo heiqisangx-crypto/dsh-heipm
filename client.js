@@ -11,6 +11,19 @@ window.__ModuleLoader__.load({
 
     const EN = {
       'nav.label': 'Projects',
+      'style.nav': 'heipm style',
+      'style.desc': 'Colors used by the heipm panel and every sub-plugin. Leave a row on "Follow theme" to reuse the DSH theme color.',
+      'style.accent': 'Accent',
+      'style.panel': 'Panel',
+      'style.card': 'Card',
+      'style.ink': 'Text',
+      'style.dim': 'Muted text',
+      'style.line': 'Border',
+      'style.radius': 'Corner radius',
+      'style.follow': 'Follow theme',
+      'style.clear': 'Clear',
+      'style.reset': 'Restore defaults',
+      'style.note': 'Changes apply immediately and are saved to ~/.dsh/dsh-heipm/theme.json.',
       'page.subtitle': 'Pick a project on the left, then choose what to manage: constraints, skills, or procedures.',
       'page.subtitle.basic': 'Pick a project on the left, then choose what to manage: constraints or skills.',
       'col.projects': 'Projects',
@@ -105,6 +118,19 @@ window.__ModuleLoader__.load({
 
     const ZH = {
       'nav.label': '项目管理',
+      'style.nav': 'heipm 样式',
+      'style.desc': '主面板与所有子插件共用的颜色。某一行停在「跟随主题」时，就用 DSH 主题本身的颜色。',
+      'style.accent': '强调色',
+      'style.panel': '面板底色',
+      'style.card': '卡片底色',
+      'style.ink': '正文颜色',
+      'style.dim': '次要文字',
+      'style.line': '边框颜色',
+      'style.radius': '圆角',
+      'style.follow': '跟随主题',
+      'style.clear': '清除',
+      'style.reset': '恢复默认',
+      'style.note': '改动立即生效，保存在 ~/.dsh/dsh-heipm/theme.json。',
       'page.subtitle': '在左侧选择项目，再选择要管理的内容：约束、技能或经验流程。',
       'page.subtitle.basic': '在左侧选择项目，再选择要管理的内容：约束或技能。',
       'col.projects': '项目',
@@ -199,22 +225,22 @@ window.__ModuleLoader__.load({
       .pm-page {
         /* Interactive accent for this panel only: orange hover/pressed.
            Local variables keep the shared theme (and other plugins) untouched. */
-        --pm-accent: #d9730d;
+        --pm-accent: var(--hm-accent, #d9730d);
         --pm-accent-strong: #b85c00;
-        --pm-accent-soft: rgba(217, 115, 13, 0.12);
-        --pm-accent-softer: rgba(217, 115, 13, 0.07);
-        --pm-accent-ring: rgba(217, 115, 13, 0.45);
+        --pm-accent-soft: color-mix(in srgb, var(--hm-accent, #d9730d) 12%, transparent);
+        --pm-accent-softer: color-mix(in srgb, var(--hm-accent, #d9730d) 7%, transparent);
+        --pm-accent-ring: color-mix(in srgb, var(--hm-accent, #d9730d) 45%, transparent);
         --pm-accent-ink: #ffffff;
       }
       /* The host theme may be switched manually, so the dark palette follows the
          probe colour the page sets from the theme's live --dsw-alias-bg-base
          rather than the OS preference. */
       .pm-page[data-scheme='dark'] {
-        --pm-accent: #ff9f43;
+        --pm-accent: var(--hm-accent, #ff9f43);
         --pm-accent-strong: #ffb56b;
-        --pm-accent-soft: rgba(255, 159, 67, 0.18);
-        --pm-accent-softer: rgba(255, 159, 67, 0.10);
-        --pm-accent-ring: rgba(255, 159, 67, 0.50);
+        --pm-accent-soft: color-mix(in srgb, var(--hm-accent, #ff9f43) 18%, transparent);
+        --pm-accent-softer: color-mix(in srgb, var(--hm-accent, #ff9f43) 10%, transparent);
+        --pm-accent-ring: color-mix(in srgb, var(--hm-accent, #ff9f43) 50%, transparent);
         --pm-accent-ink: #241503;
       }
       .pm-scheme-probe {
@@ -1046,7 +1072,7 @@ window.__ModuleLoader__.load({
 
     /* ----- session markdown styling: tables get a richer look plus an expand toggle ----- */
 
-    const MARKDOWN_CSS = "/* dsh-heipm-markdown · 会话 Markdown 表格美化（默认关闭）\n * DOM 契约（实测于 dsh-web-frontend 0.2.1-rc.3，与 dsh-streamfold 同一套思路：认结构属性，不认哈希类名）：\n *   表格外壳 div 同时带哈希类 _tableScroll_* / _tableFill_*，只有 4 列及以上才追加字面量 md-table-wide；\n *   3 列以内走 _tableFill_*（width:100%），两者都要覆盖，所以一律用 [class*=\"_tableScroll\"] + [class*=\"_tableFill\"]。\n * 视觉：圆角描边 + 高对比表头 + 强调线 + 斑马纹；表上方一行按钮控制「收起 = 整表隐藏 / 展开 = 整表显示」，\n * 默认展开，按钮对任何行数的表都可用。\n * 色值写死，不依赖可能缺失的宿主令牌。\n */\n.cv-table,\n.pm-table,\n[class*=\"_tableScroll\"],\n[class*=\"_tableFill\"] {\n  --hm-table-head: #262a31;\n  --hm-table-zebra: rgba(148, 163, 184, .08);\n  --hm-table-line: rgba(148, 163, 184, .22);\n  --hm-table-line-strong: rgba(148, 163, 184, .38);\n  --hm-table-row: #eceef2;\n  --hm-table-row-dim: #a8adb8;\n  --hm-table-hover: #ff9f43;\n  position: relative;\n}\n\n.cv-table > table,\n.pm-table > table,\n[class*=\"_tableScroll\"] > table,\n[class*=\"_tableFill\"] > table {\n  background: transparent;\n  border: 1px solid var(--hm-table-line);\n  border-radius: 10px;\n  border-collapse: separate;\n  border-spacing: 0;\n  overflow: hidden;\n}\n\n.cv-table > table tbody tr,\n.pm-table > table tbody tr,\n[class*=\"_tableScroll\"] > table tbody tr,\n[class*=\"_tableFill\"] > table tbody tr {\n  background-color: transparent;\n}\n\n.cv-table > table thead th,\n.pm-table > table thead th,\n[class*=\"_tableScroll\"] > table thead th,\n[class*=\"_tableFill\"] > table thead th {\n  background: var(--hm-table-head);\n  border-bottom: 1px solid var(--hm-table-line-strong);\n  color: var(--hm-table-row);\n  font-weight: 600;\n  padding: 10px 14px;\n  position: relative;\n}\n\n.cv-table > table thead th::after,\n.pm-table > table thead th::after,\n[class*=\"_tableScroll\"] > table thead th::after,\n[class*=\"_tableFill\"] > table thead th::after {\n  background: linear-gradient(90deg, var(--hm-table-hover), transparent 85%);\n  bottom: -1px;\n  content: \"\";\n  height: 2px;\n  left: 0;\n  opacity: .55;\n  position: absolute;\n  right: 0;\n}\n\n.cv-table > table tbody td,\n.pm-table > table tbody td,\n[class*=\"_tableScroll\"] > table tbody td,\n[class*=\"_tableFill\"] > table tbody td {\n  background: transparent;\n  border-bottom: 1px solid var(--hm-table-line);\n  color: var(--hm-table-row);\n  font-size: .95em;\n  line-height: 1.6;\n  padding: 9px 14px;\n  transition: background-color .15s ease;\n}\n\n.cv-table > table tbody tr:nth-child(even),\n.pm-table > table tbody tr:nth-child(even),\n[class*=\"_tableScroll\"] > table tbody tr:nth-child(even),\n[class*=\"_tableFill\"] > table tbody tr:nth-child(even) {\n  background-color: var(--hm-table-zebra);\n}\n\n.cv-table > table tbody tr:hover,\n.pm-table > table tbody tr:hover,\n[class*=\"_tableScroll\"] > table tbody tr:hover,\n[class*=\"_tableFill\"] > table tbody tr:hover {\n  background-color: rgba(255, 159, 67, .14);\n}\n\n.cv-table > table tbody tr:last-child td,\n.pm-table > table tbody tr:last-child td,\n[class*=\"_tableScroll\"] > table tbody tr:last-child td,\n[class*=\"_tableFill\"] > table tbody tr:last-child td {\n  border-bottom: 0;\n}\n\n.cv-table > table th:first-child,\n.pm-table > table th:first-child,\n.cv-table > table td:first-child,\n.pm-table > table td:first-child,\n[class*=\"_tableScroll\"] > table th:first-child,\n[class*=\"_tableScroll\"] > table td:first-child,\n[class*=\"_tableFill\"] > table th:first-child,\n[class*=\"_tableFill\"] > table td:first-child {\n  padding-left: 14px;\n}\n\n.cv-table > table th:last-child,\n.pm-table > table th:last-child,\n.cv-table > table td:last-child,\n.pm-table > table td:last-child,\n[class*=\"_tableScroll\"] > table th:last-child,\n[class*=\"_tableScroll\"] > table td:last-child,\n[class*=\"_tableFill\"] > table th:last-child,\n[class*=\"_tableFill\"] > table td:last-child {\n  padding-right: 14px;\n}\n\n/* 收起 = 整张表都不显示（不是压扁成一条渐变虚线）；展开 = 完整显示。 */\n.cv-table-collapsed > table,\n.hm-table-collapsed > table {\n  display: none;\n}\n\n.hm-table-toggle {\n  align-items: center;\n  appearance: none;\n  box-sizing: border-box;\n  background: #262a31;\n  border: 1px solid rgba(148, 163, 184, .38);\n  border-radius: 999px;\n  color: #a8adb8;\n  cursor: pointer;\n  display: inline-flex;\n  font-family: inherit;\n  font-size: 12px;\n  font-weight: 400;\n  gap: 6px;\n  justify-content: flex-start;\n  line-height: 1;\n  margin: 0 0 8px;\n  padding: 6px 12px;\n  user-select: none;\n  width: 100%;\n}\n\n.hm-table-toggle:hover {\n  border-color: #ff9f43;\n  color: #eceef2;\n}\n\n.hm-table-toggle::before {\n  color: #ff9f43;\n  content: \"▾\";\n  display: inline-block;\n  transition: transform .2s ease;\n}\n\n.hm-table-toggle[aria-expanded=\"false\"]::before {\n  transform: rotate(-90deg);\n}\n\n.hm-table-toggle-label::after {\n  content: \"收起表格\";\n}\n\n.hm-table-toggle[aria-expanded=\"false\"] .hm-table-toggle-label::after {\n  content: \"展开表格\";\n}\n"
+    const MARKDOWN_CSS = "/* dsh-heipm-markdown · 会话 Markdown 表格美化（默认关闭）\n * DOM 契约（实测于 dsh-web-frontend 0.2.1-rc.3，与 dsh-streamfold 同一套思路：认结构属性，不认哈希类名）：\n *   表格外壳 div 同时带哈希类 _tableScroll_* / _tableFill_*，只有 4 列及以上才追加字面量 md-table-wide；\n *   3 列以内走 _tableFill_*（width:100%），两者都要覆盖，所以一律用 [class*=\"_tableScroll\"] + [class*=\"_tableFill\"]。\n * 视觉：圆角描边 + 高对比表头 + 强调线 + 斑马纹；表上方一行按钮控制「收起 = 整表隐藏 / 展开 = 整表显示」，\n * 默认展开，按钮对任何行数的表都可用。\n * 色值写死，不依赖可能缺失的宿主令牌。\n */\n.cv-table,\n.pm-table,\n[class*=\"_tableScroll\"],\n[class*=\"_tableFill\"] {\n  --hm-table-head: var(--hm-card, #262a31);\n  --hm-table-zebra: color-mix(in srgb, var(--hm-line, #94a3b8) 8%, transparent);\n  --hm-table-line: color-mix(in srgb, var(--hm-line, #94a3b8) 22%, transparent);\n  --hm-table-line-strong: color-mix(in srgb, var(--hm-line, #94a3b8) 38%, transparent);\n  --hm-table-row: var(--hm-ink, #eceef2);\n  --hm-table-row-dim: var(--hm-dim, #a8adb8);\n  --hm-table-hover: var(--hm-accent, #ff9f43);\n  position: relative;\n}\n\n.cv-table > table,\n.pm-table > table,\n[class*=\"_tableScroll\"] > table,\n[class*=\"_tableFill\"] > table {\n  background: transparent;\n  border: 1px solid var(--hm-table-line);\n  border-radius: var(--hm-radius, 10px);\n  border-collapse: separate;\n  border-spacing: 0;\n  overflow: hidden;\n}\n\n.cv-table > table tbody tr,\n.pm-table > table tbody tr,\n[class*=\"_tableScroll\"] > table tbody tr,\n[class*=\"_tableFill\"] > table tbody tr {\n  background-color: transparent;\n}\n\n.cv-table > table thead th,\n.pm-table > table thead th,\n[class*=\"_tableScroll\"] > table thead th,\n[class*=\"_tableFill\"] > table thead th {\n  background: var(--hm-table-head);\n  border-bottom: 1px solid var(--hm-table-line-strong);\n  color: var(--hm-table-row);\n  font-weight: 600;\n  padding: 10px 14px;\n  position: relative;\n}\n\n.cv-table > table thead th::after,\n.pm-table > table thead th::after,\n[class*=\"_tableScroll\"] > table thead th::after,\n[class*=\"_tableFill\"] > table thead th::after {\n  background: linear-gradient(90deg, var(--hm-table-hover), transparent 85%);\n  bottom: -1px;\n  content: \"\";\n  height: 2px;\n  left: 0;\n  opacity: .55;\n  position: absolute;\n  right: 0;\n}\n\n.cv-table > table tbody td,\n.pm-table > table tbody td,\n[class*=\"_tableScroll\"] > table tbody td,\n[class*=\"_tableFill\"] > table tbody td {\n  background: transparent;\n  border-bottom: 1px solid var(--hm-table-line);\n  color: var(--hm-table-row);\n  font-size: .95em;\n  line-height: 1.6;\n  padding: 9px 14px;\n  transition: background-color .15s ease;\n}\n\n.cv-table > table tbody tr:nth-child(even),\n.pm-table > table tbody tr:nth-child(even),\n[class*=\"_tableScroll\"] > table tbody tr:nth-child(even),\n[class*=\"_tableFill\"] > table tbody tr:nth-child(even) {\n  background-color: var(--hm-table-zebra);\n}\n\n.cv-table > table tbody tr:hover,\n.pm-table > table tbody tr:hover,\n[class*=\"_tableScroll\"] > table tbody tr:hover,\n[class*=\"_tableFill\"] > table tbody tr:hover {\n  background-color: color-mix(in srgb, var(--hm-accent, #ff9f43) 14%, transparent);\n}\n\n.cv-table > table tbody tr:last-child td,\n.pm-table > table tbody tr:last-child td,\n[class*=\"_tableScroll\"] > table tbody tr:last-child td,\n[class*=\"_tableFill\"] > table tbody tr:last-child td {\n  border-bottom: 0;\n}\n\n.cv-table > table th:first-child,\n.pm-table > table th:first-child,\n.cv-table > table td:first-child,\n.pm-table > table td:first-child,\n[class*=\"_tableScroll\"] > table th:first-child,\n[class*=\"_tableScroll\"] > table td:first-child,\n[class*=\"_tableFill\"] > table th:first-child,\n[class*=\"_tableFill\"] > table td:first-child {\n  padding-left: 14px;\n}\n\n.cv-table > table th:last-child,\n.pm-table > table th:last-child,\n.cv-table > table td:last-child,\n.pm-table > table td:last-child,\n[class*=\"_tableScroll\"] > table th:last-child,\n[class*=\"_tableScroll\"] > table td:last-child,\n[class*=\"_tableFill\"] > table th:last-child,\n[class*=\"_tableFill\"] > table td:last-child {\n  padding-right: 14px;\n}\n\n/* 收起 = 整张表都不显示（不是压扁成一条渐变虚线）；展开 = 完整显示。 */\n.cv-table-collapsed > table,\n.hm-table-collapsed > table {\n  display: none;\n}\n\n.hm-table-toggle {\n  align-items: center;\n  appearance: none;\n  box-sizing: border-box;\n  background: var(--hm-card, #262a31);\n  border: 1px solid rgba(148, 163, 184, .38);\n  border-radius: 999px;\n  color: var(--hm-dim, #a8adb8);\n  cursor: pointer;\n  display: inline-flex;\n  font-family: inherit;\n  font-size: 12px;\n  font-weight: 400;\n  gap: 6px;\n  justify-content: flex-start;\n  line-height: 1;\n  margin: 0 0 8px;\n  padding: 6px 12px;\n  user-select: none;\n  width: 100%;\n}\n\n.hm-table-toggle:hover {\n  border-color: var(--hm-accent, #ff9f43);\n  color: var(--hm-ink, #eceef2);\n}\n\n.hm-table-toggle::before {\n  color: var(--hm-accent, #ff9f43);\n  content: \"▾\";\n  display: inline-block;\n  transition: transform .2s ease;\n}\n\n.hm-table-toggle[aria-expanded=\"false\"]::before {\n  transform: rotate(-90deg);\n}\n\n.hm-table-toggle-label::after {\n  content: \"收起表格\";\n}\n\n.hm-table-toggle[aria-expanded=\"false\"] .hm-table-toggle-label::after {\n  content: \"展开表格\";\n}\n"
 
     function markdownScopeCss(css) {
       return css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/"/g, "'").trim()
@@ -1343,18 +1369,18 @@ window.__ModuleLoader__.load({
 
     const PROCESS_SHELF_CSS = `
 .hm-proc-row{display:none!important}
-.hm-proc-shelf{align-items:center;align-self:flex-start;background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.28);border-radius:10px;display:inline-flex;flex-wrap:wrap;gap:2px;margin:2px 0 6px;max-width:100%;padding:3px 6px}
-.hm-proc-step{align-items:center;appearance:none;background:transparent;border:0;border-radius:9px;box-sizing:border-box;color:#a8adb8;cursor:pointer;display:inline-flex;height:32px;justify-content:center;line-height:1;padding:0;width:32px}
-.hm-proc-step:hover{background:rgba(255,159,67,.18);color:#ff9f43}
-.hm-proc-step[aria-expanded="true"]{background:rgba(255,159,67,.22);color:#ff9f43}
+.hm-proc-shelf{align-items:center;align-self:flex-start;background:color-mix(in srgb, var(--hm-line, #94a3b8) 7%, transparent);border:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 28%, transparent);border-radius:var(--hm-radius, 10px);display:inline-flex;flex-wrap:wrap;gap:2px;margin:2px 0 6px;max-width:100%;padding:3px 6px}
+.hm-proc-step{align-items:center;appearance:none;background:transparent;border:0;border-radius:9px;box-sizing:border-box;color:var(--hm-dim, #a8adb8);cursor:pointer;display:inline-flex;height:32px;justify-content:center;line-height:1;padding:0;width:32px}
+.hm-proc-step:hover{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 18%, transparent);color:var(--hm-accent, #ff9f43)}
+.hm-proc-step[aria-expanded="true"]{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 22%, transparent);color:var(--hm-accent, #ff9f43)}
 .hm-proc-step svg{display:block;fill:currentColor;height:19px;width:19px}
-.hm-proc-drawer{background:#1b1f26;border-left:1px solid rgba(148,163,184,.3);box-shadow:-18px 0 48px rgba(0,0,0,.45);box-sizing:border-box;color:#eceef2;display:flex;flex-direction:column;font-size:13px;height:100vh;line-height:1.65;max-width:92vw;position:fixed;right:0;top:0;width:520px;z-index:1400}
+.hm-proc-drawer{background:var(--hm-panel, #1b1f26);border-left:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 30%, transparent);box-shadow:-18px 0 48px rgba(0,0,0,.45);box-sizing:border-box;color:var(--hm-ink, #eceef2);display:flex;flex-direction:column;font-size:13px;height:100vh;line-height:1.65;max-width:92vw;position:fixed;right:0;top:0;width:520px;z-index:1400}
 .hm-proc-drawer[hidden]{display:none}
-.hm-proc-drawer-head{align-items:center;border-bottom:1px solid rgba(148,163,184,.22);display:flex;flex:0 0 auto;gap:10px;padding:14px 16px}
-.hm-proc-drawer-title{color:#eceef2;font-size:14px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hm-proc-drawer-meta{color:#a8adb8;font-size:12px;margin-left:auto;white-space:nowrap}
-.hm-proc-drawer-close{appearance:none;background:transparent;border:0;border-radius:8px;color:#a8adb8;cursor:pointer;flex:0 0 auto;font-size:18px;height:28px;line-height:1;padding:0;width:28px}
-.hm-proc-drawer-close:hover{background:rgba(148,163,184,.14);color:#eceef2}
+.hm-proc-drawer-head{align-items:center;border-bottom:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 22%, transparent);display:flex;flex:0 0 auto;gap:10px;padding:14px 16px}
+.hm-proc-drawer-title{color:var(--hm-ink, #eceef2);font-size:14px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hm-proc-drawer-meta{color:var(--hm-dim, #a8adb8);font-size:12px;margin-left:auto;white-space:nowrap}
+.hm-proc-drawer-close{appearance:none;background:transparent;border:0;border-radius:8px;color:var(--hm-dim, #a8adb8);cursor:pointer;flex:0 0 auto;font-size:18px;height:28px;line-height:1;padding:0;width:28px}
+.hm-proc-drawer-close:hover{background:color-mix(in srgb, var(--hm-line, #94a3b8) 14%, transparent);color:var(--hm-ink, #eceef2)}
 .hm-proc-drawer-body{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:auto;padding:14px 16px}
 .hm-proc-drawer-body>*{flex:1 1 auto;min-height:0;max-height:none!important;overflow:visible!important}
 .hm-proc-drawer-body [class*="_body"],.hm-proc-drawer-body [class*="_bodyScroll"],.hm-proc-drawer-body [class*="_ioSection"],.hm-proc-drawer-body [class*="_code"]{max-height:none!important;overflow:visible!important}
@@ -1908,20 +1934,167 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /* ----- heipm 样式：设置页 + 全局 CSS 变量（主插件与所有子插件共用） ----- */
+
+    const THEME_COLOR_KEYS = ['accent', 'panel', 'card', 'ink', 'dim', 'line']
+    /* 空字符串 = 不覆盖，组件 CSS 自己回落到宿主主题令牌。 */
+    const THEME_DEFAULTS = { accent: '', panel: '', card: '', ink: '', dim: '', line: '', radius: 10 }
+
+    function normalizeTheme(input) {
+      const source = input && typeof input === 'object' ? input : {}
+      const theme = {}
+      for (const key of THEME_COLOR_KEYS) {
+        const value = typeof source[key] === 'string' ? source[key].trim() : ''
+        theme[key] = /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : ''
+      }
+      const radius = Number(source.radius)
+      theme.radius = Number.isFinite(radius) ? Math.min(24, Math.max(0, Math.round(radius))) : THEME_DEFAULTS.radius
+      return theme
+    }
+
+    /* 静态样式 + 变量写在同一个标签里：改主题只换这一个 style 的内容。 */
+    const THEME_STATIC_CSS = [
+      '.pm-style{display:flex;flex-direction:column;gap:14px;max-width:640px}',
+      '.pm-style-desc{color:var(--hm-dim,#a8adb8);font-size:13px;line-height:1.6;margin:0}',
+      '.pm-style-row{align-items:center;display:grid;gap:12px;grid-template-columns:120px 44px 1fr auto}',
+      '.pm-style-row>span.pm-style-label{color:var(--hm-ink,#eceef2);font-size:13px}',
+      '.pm-style-swatch{appearance:none;background:transparent;border:1px solid var(--hm-line,rgba(148,163,184,.38));border-radius:var(--hm-radius,10px);cursor:pointer;height:30px;padding:2px;width:44px}',
+      '.pm-style-value{color:var(--hm-dim,#a8adb8);font-family:ui-monospace,monospace;font-size:12px}',
+      '.pm-style-clear{appearance:none;background:transparent;border:1px solid var(--hm-line,rgba(148,163,184,.38));border-radius:8px;color:var(--hm-dim,#a8adb8);cursor:pointer;font-size:12px;padding:4px 10px}',
+      '.pm-style-clear:hover{border-color:var(--hm-accent,#ff9f43);color:var(--hm-accent,#ff9f43)}',
+      '.pm-style-range{accent-color:var(--hm-accent,#ff9f43);width:100%}',
+      '.pm-style-actions{display:flex;gap:10px;margin-top:4px}',
+      '.pm-style-reset{appearance:none;background:transparent;border:1px solid var(--hm-line,rgba(148,163,184,.38));border-radius:8px;color:var(--hm-ink,#eceef2);cursor:pointer;font-size:13px;padding:7px 16px}',
+      '.pm-style-reset:hover{border-color:var(--hm-accent,#ff9f43);color:var(--hm-accent,#ff9f43)}',
+      '.pm-style-note{color:var(--hm-dim,#a8adb8);font-size:12px;margin:0}',
+    ].join('')
+
+    function themeCssText(theme) {
+      const t = normalizeTheme(theme)
+      const vars = []
+      for (const key of THEME_COLOR_KEYS) {
+        if (t[key]) vars.push('--hm-' + key + ':' + t[key] + ';')
+      }
+      vars.push('--hm-radius:' + t.radius + 'px;')
+      return ':root{' + vars.join('') + '}' + THEME_STATIC_CSS
+    }
+
+    const themeState = { theme: { ...THEME_DEFAULTS }, listeners: [] }
+
+    function applyTheme(theme, doc) {
+      const target = doc || (typeof document === 'undefined' ? null : document)
+      if (!target || !target.head) return null
+      let tag = target.querySelector('style[data-plugin-css="heipm:theme"]')
+      if (!tag) {
+        tag = target.createElement('style')
+        tag.setAttribute('data-plugin-css', 'heipm:theme')
+        tag.setAttribute('data-dsh-heipm-theme', '')
+        target.head.appendChild(tag)
+      }
+      themeState.theme = normalizeTheme(theme)
+      tag.textContent = themeCssText(themeState.theme)
+      for (const fn of themeState.listeners.slice()) {
+        try { fn(themeState.theme) } catch {}
+      }
+      return themeState.theme
+    }
+
+    async function loadTheme(doc) {
+      try {
+        const body = await api({ action: 'theme.get' })
+        if (body && body.theme) applyTheme(body.theme, doc)
+      } catch {}
+    }
+
+    async function saveTheme(theme) {
+      const body = await api({ action: 'theme.set', theme })
+      if (body && body.theme) applyTheme(body.theme)
+      return body && body.theme ? body.theme : null
+    }
+
+    function HeipmStyleSection(props) {
+      const t = typeof props.t === 'function' ? props.t : key => key
+      const [theme, setTheme] = useState(themeState.theme)
+      const timer = useRef(null)
+      useEffect(() => {
+        const sync = next => setTheme(next)
+        themeState.listeners.push(sync)
+        setTheme(themeState.theme)
+        return () => {
+          const at = themeState.listeners.indexOf(sync)
+          if (at >= 0) themeState.listeners.splice(at, 1)
+          if (timer.current) clearTimeout(timer.current)
+        }
+      }, [])
+      /* 改一个值就立刻生效，落盘延后 400ms，避免拖滑块时刷请求。 */
+      const commit = next => {
+        setTheme(next)
+        applyTheme(next)
+        if (timer.current) clearTimeout(timer.current)
+        timer.current = setTimeout(() => { saveTheme(next).catch(() => {}) }, 400)
+      }
+      const row = (key, label) => h('label', { className: 'pm-style-row', key },
+        h('span', { className: 'pm-style-label' }, label),
+        h('input', {
+          className: 'pm-style-swatch',
+          type: 'color',
+          value: theme[key] || '#808080',
+          onChange: event => commit({ ...theme, [key]: String(event.target.value || '') }),
+        }),
+        h('span', { className: 'pm-style-value' }, theme[key] || t('style.follow')),
+        h('button', {
+          type: 'button',
+          className: 'pm-style-clear',
+          onClick: () => commit({ ...theme, [key]: '' }),
+        }, t('style.clear')),
+      )
+      return h('div', { className: 'pm-style' },
+        h('p', { className: 'pm-style-desc' }, t('style.desc')),
+        row('accent', t('style.accent')),
+        row('panel', t('style.panel')),
+        row('card', t('style.card')),
+        row('ink', t('style.ink')),
+        row('dim', t('style.dim')),
+        row('line', t('style.line')),
+        h('label', { className: 'pm-style-row' },
+          h('span', { className: 'pm-style-label' }, t('style.radius')),
+          h('span'),
+          h('input', {
+            className: 'pm-style-range',
+            type: 'range',
+            min: '0',
+            max: '24',
+            step: '1',
+            value: String(theme.radius),
+            onChange: event => commit({ ...theme, radius: Number(event.target.value) }),
+          }),
+          h('span', { className: 'pm-style-value' }, theme.radius + 'px'),
+        ),
+        h('div', { className: 'pm-style-actions' },
+          h('button', {
+            type: 'button',
+            className: 'pm-style-reset',
+            onClick: () => commit({ ...THEME_DEFAULTS }),
+          }, t('style.reset')),
+        ),
+        h('p', { className: 'pm-style-note' }, t('style.note')),
+      )
+    }
+
     /* ----- workspace context menu on the host sidebar ----- */
 
     const WS_CTX_CSS = `
       .pm-ctx,
       .pm-ctx-overlay {
-        --pm-ctx-accent: #d9730d;
+        --pm-ctx-accent: var(--hm-accent, #d9730d);
         --pm-ctx-accent-strong: #b85c00;
-        --pm-ctx-accent-soft: rgba(217, 115, 13, .13);
-        --pm-ctx-accent-ring: rgba(217, 115, 13, .45);
+        --pm-ctx-accent-soft: color-mix(in srgb, var(--hm-accent, #d9730d) 13%, transparent);
+        --pm-ctx-accent-ring: color-mix(in srgb, var(--hm-accent, #d9730d) 45%, transparent);
         --pm-ctx-accent-ink: #ffffff;
         --pm-ctx-danger: var(--dsw-alias-state-error-primary, #ec1313);
         --pm-ctx-danger-soft: rgba(236, 19, 19, .10);
         --pm-ctx-danger-ink: #ffffff;
-        --pm-ctx-radius: var(--dsw-radius-lg, 10px);
+        --pm-ctx-radius: var(--hm-radius, var(--dsw-radius-lg, 10px));
         --pm-ctx-line: var(--dsw-alias-border-l1, rgba(0, 0, 0, .08));
         --pm-ctx-ink: var(--dsw-alias-label-primary, #1b1b1c);
         --pm-ctx-dim: var(--dsw-alias-label-secondary, #61666b);
@@ -1933,10 +2106,10 @@ window.__ModuleLoader__.load({
       }
       body[data-ds-dark-theme] .pm-ctx,
       body[data-ds-dark-theme] .pm-ctx-overlay {
-        --pm-ctx-accent: #ff9f43;
+        --pm-ctx-accent: var(--hm-accent, #ff9f43);
         --pm-ctx-accent-strong: #ffb56b;
-        --pm-ctx-accent-soft: rgba(255, 159, 67, .18);
-        --pm-ctx-accent-ring: rgba(255, 159, 67, .50);
+        --pm-ctx-accent-soft: color-mix(in srgb, var(--hm-accent, #ff9f43) 18%, transparent);
+        --pm-ctx-accent-ring: color-mix(in srgb, var(--hm-accent, #ff9f43) 50%, transparent);
         --pm-ctx-accent-ink: #241503;
         --pm-ctx-danger: var(--dsw-alias-state-error-primary, #f25a5a);
         --pm-ctx-danger-soft: rgba(242, 90, 90, .16);
@@ -3427,6 +3600,16 @@ window.__ModuleLoader__.load({
       ensureProcedures({ locale, registerLocale: dispose => disposers.push(dispose) })
       ensureQuest({ locale, registerLocale: dispose => disposers.push(dispose) })
       installClientFeatures(ctx, workspaces, t)
+      /* 主题先落地再挂设置页：打开页面就是用户上次选的颜色。 */
+      loadTheme()
+      ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
+        name: 'settings.section',
+        id: 'heipm-style',
+        order: 40,
+        label: () => t('style.nav'),
+        locale: NS,
+        inject: () => ({ t }),
+      }, HeipmStyleSection)), 'dsh-heipm: heipm style settings')
       ctx.effect(startMarkdownStyling, 'dsh-heipm: session markdown styling')
       ctx.effect(() => () => {
         for (const dispose of disposers) {
@@ -3468,6 +3651,10 @@ window.__ModuleLoader__.load({
         clampMenuPosition,
         workspaceTitleOf,
         workspaceErrorText,
+        normalizeTheme,
+        themeCssText,
+        THEME_DEFAULTS,
+        THEME_COLOR_KEYS,
       },
     }
   },

@@ -29,6 +29,7 @@
 | 过程收纳（图标条） | 展开控件 `[data-disclosure-row][aria-expanded]`；正文 `[class*="_thinkBody"]`、`[class*="_bodyWrap"]`、`[class*="_bodyScroll"]` | DOM class | 0.2.2-rc.1（静态核对） | 详情看不到，仍收纳 |
 | 过程收纳（图标条） | `hm-proc-shelf`、`hm-proc-row`（自有 class） | 自有 DOM | 0.2.2-rc.1（静态核对） | 不影响宿主 |
 | 经验流程 / 任务清单 | `systemPrompt`、`commands`、`skills` 服务 | Service | 0.2.1-rc.3 | 子插件不加载 |
+| 样式设置页 | `ctx.slots.inject('settings.section')` → `register({ id, order, label, locale, inject })` | Slot | 0.2.2-rc.1（静态核对） | 设置里不出现该页，其余功能照常 |
 
 > `docs` 里没有列出的选择器，不允许在代码里出现。
 
