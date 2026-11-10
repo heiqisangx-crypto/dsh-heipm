@@ -79,7 +79,7 @@ const themed = t.themeCssText({ accent: '#FF9F43', panel: '#101010', radius: 4 }
 truthy('a chosen accent becomes a variable', themed.includes('--hm-accent:#ff9f43;'))
 truthy('a chosen panel becomes a variable', themed.includes('--hm-panel:#101010;'))
 truthy('the radius follows the input', themed.includes('--hm-radius:4px;'))
-truthy('cleared colours are omitted', !themed.includes('--hm-card'))
+truthy('cleared colours are omitted', !themed.slice(0, themed.indexOf('}')).includes('--hm-card:'))
 
 /* ---- 各组件 CSS 接变量 ---- */
 truthy('markdown table head uses the card colour', STYLES.includes('--hm-table-head: var(--hm-card, #262a31);'))
@@ -88,6 +88,10 @@ truthy('markdown table radius uses the shared radius', STYLES.includes('border-r
 truthy('process shelf drawer uses the panel colour', SOURCE.includes('background:var(--hm-panel, #1b1f26)'))
 truthy('process shelf icons use the accent', SOURCE.includes('color:var(--hm-accent, #ff9f43)'))
 truthy('workspace menu accent follows the theme', SOURCE.includes('--pm-ctx-accent: var(--hm-accent, #d9730d);'))
+truthy('the selected-row text colour derives from the accent', SOURCE.includes('--pm-accent-strong: color-mix(in srgb, var(--hm-accent, #d9730d) 78%, #000);'))
+truthy('every colour row explains its scope', SOURCE.includes("'style.accentHint': '影响：选中行、按钮、hover、表格悬停、过程图标'"))
+truthy('the page renders a live preview of the scope', SOURCE.includes("'style.preview': '这些颜色作用范围的实时预览'") && SOURCE.includes("className: 'pm-style-preview'"))
+truthy('the preview shows the five surfaces', SOURCE.split('pm-style-chip ').length - 1 >= 5)
 truthy('main panel accent follows the theme', SOURCE.includes('--pm-accent: var(--hm-accent, #d9730d);'))
 
 /* ---- 设置页注册 ---- */

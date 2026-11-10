@@ -20,6 +20,19 @@ window.__ModuleLoader__.load({
       'style.dim': 'Muted text',
       'style.line': 'Border',
       'style.radius': 'Corner radius',
+      'style.preview': 'Live preview of the surfaces these colours drive',
+      'style.previewSelect': 'Selected item',
+      'style.previewButton': 'Button',
+      'style.previewHead': 'Table head',
+      'style.previewPanel': 'Drawer / menu',
+      'style.previewMuted': 'Border & muted text',
+      'style.accentHint': 'Selected rows, buttons, hover states, table hover, process icons',
+      'style.panelHint': 'Process drawer and workspace context menu background',
+      'style.cardHint': 'Table header, "collapse table" button, card backgrounds',
+      'style.inkHint': 'Panel body text, table cells, drawer titles',
+      'style.dimHint': 'Secondary copy, paths, default icon colour',
+      'style.lineHint': 'Borders, dividers, table rules',
+      'style.radiusHint': 'Tables, icon shelf, menu, buttons',
       'style.follow': 'Follow theme',
       'style.clear': 'Clear',
       'style.reset': 'Restore defaults',
@@ -127,6 +140,19 @@ window.__ModuleLoader__.load({
       'style.dim': '次要文字',
       'style.line': '边框颜色',
       'style.radius': '圆角',
+      'style.preview': '这些颜色作用范围的实时预览',
+      'style.previewSelect': '选中项',
+      'style.previewButton': '按钮',
+      'style.previewHead': '表格表头',
+      'style.previewPanel': '抽屉 / 菜单',
+      'style.previewMuted': '边框与次要文字',
+      'style.accentHint': '影响：选中行、按钮、hover、表格悬停、过程图标',
+      'style.panelHint': '影响：过程收纳抽屉、工作区右键菜单的底色',
+      'style.cardHint': '影响：表格表头、「收起表格」按钮、卡片底',
+      'style.inkHint': '影响：面板正文、表格单元格、抽屉标题',
+      'style.dimHint': '影响：次要说明、路径、图标默认色',
+      'style.lineHint': '影响：边框、分隔线、表格横线',
+      'style.radiusHint': '影响：表格、图标条、菜单、按钮圆角',
       'style.follow': '跟随主题',
       'style.clear': '清除',
       'style.reset': '恢复默认',
@@ -226,7 +252,7 @@ window.__ModuleLoader__.load({
         /* Interactive accent for this panel only: orange hover/pressed.
            Local variables keep the shared theme (and other plugins) untouched. */
         --pm-accent: var(--hm-accent, #d9730d);
-        --pm-accent-strong: #b85c00;
+        --pm-accent-strong: color-mix(in srgb, var(--hm-accent, #d9730d) 78%, #000);
         --pm-accent-soft: color-mix(in srgb, var(--hm-accent, #d9730d) 12%, transparent);
         --pm-accent-softer: color-mix(in srgb, var(--hm-accent, #d9730d) 7%, transparent);
         --pm-accent-ring: color-mix(in srgb, var(--hm-accent, #d9730d) 45%, transparent);
@@ -237,7 +263,7 @@ window.__ModuleLoader__.load({
          rather than the OS preference. */
       .pm-page[data-scheme='dark'] {
         --pm-accent: var(--hm-accent, #ff9f43);
-        --pm-accent-strong: #ffb56b;
+        --pm-accent-strong: color-mix(in srgb, var(--hm-accent, #ff9f43) 78%, #fff);
         --pm-accent-soft: color-mix(in srgb, var(--hm-accent, #ff9f43) 18%, transparent);
         --pm-accent-softer: color-mix(in srgb, var(--hm-accent, #ff9f43) 10%, transparent);
         --pm-accent-ring: color-mix(in srgb, var(--hm-accent, #ff9f43) 50%, transparent);
@@ -1956,8 +1982,18 @@ window.__ModuleLoader__.load({
     const THEME_STATIC_CSS = [
       '.pm-style{display:flex;flex-direction:column;gap:14px;max-width:640px}',
       '.pm-style-desc{color:var(--hm-dim,#a8adb8);font-size:13px;line-height:1.6;margin:0}',
-      '.pm-style-row{align-items:center;display:grid;gap:12px;grid-template-columns:120px 44px 1fr auto}',
-      '.pm-style-row>span.pm-style-label{color:var(--hm-ink,#eceef2);font-size:13px}',
+      '.pm-style-row{align-items:center;display:grid;gap:12px;grid-template-columns:minmax(190px,1fr) 44px 104px auto}',
+      '.pm-style-text{display:flex;flex-direction:column;gap:3px;min-width:0}',
+      '.pm-style-label{color:var(--hm-ink,#eceef2);font-size:13px}',
+      '.pm-style-hint{color:var(--hm-dim,#a8adb8);font-size:12px;line-height:1.5}',
+      '.pm-style-preview{border:1px solid var(--hm-line,rgba(148,163,184,.38));border-radius:var(--hm-radius,10px);display:flex;flex-wrap:wrap;gap:10px;padding:12px 14px}',
+      '.pm-style-preview-title{color:var(--hm-dim,#a8adb8);font-size:12px;flex:0 0 100%;margin:0}',
+      '.pm-style-chip{align-items:center;border-radius:var(--hm-radius,10px);display:inline-flex;font-size:12px;padding:6px 12px}',
+      '.pm-style-chip.select{background:color-mix(in srgb, var(--hm-accent,#ff9f43) 12%, transparent);color:color-mix(in srgb, var(--hm-accent,#ff9f43) 78%, #fff)}',
+      '.pm-style-chip.button{background:var(--hm-accent,#ff9f43);color:#11151a}',
+      '.pm-style-chip.head{background:var(--hm-card,#262a31);color:var(--hm-ink,#eceef2)}',
+      '.pm-style-chip.muted{border:1px solid color-mix(in srgb, var(--hm-line,#94a3b8) 38%, transparent);color:var(--hm-dim,#a8adb8)}',
+      '.pm-style-chip.panel{background:var(--hm-panel,#1b1f26);border:1px solid color-mix(in srgb, var(--hm-line,#94a3b8) 30%, transparent);color:var(--hm-ink,#eceef2)}',
       '.pm-style-swatch{appearance:none;background:transparent;border:1px solid var(--hm-line,rgba(148,163,184,.38));border-radius:var(--hm-radius,10px);cursor:pointer;height:30px;padding:2px;width:44px}',
       '.pm-style-value{color:var(--hm-dim,#a8adb8);font-family:ui-monospace,monospace;font-size:12px}',
       '.pm-style-clear{appearance:none;background:transparent;border:1px solid var(--hm-line,rgba(148,163,184,.38));border-radius:8px;color:var(--hm-dim,#a8adb8);cursor:pointer;font-size:12px;padding:4px 10px}',
@@ -2033,8 +2069,11 @@ window.__ModuleLoader__.load({
         if (timer.current) clearTimeout(timer.current)
         timer.current = setTimeout(() => { saveTheme(next).catch(() => {}) }, 400)
       }
-      const row = (key, label) => h('label', { className: 'pm-style-row', key },
-        h('span', { className: 'pm-style-label' }, label),
+      const row = (key, label, hint) => h('div', { className: 'pm-style-row', key },
+        h('div', { className: 'pm-style-text' },
+          h('span', { className: 'pm-style-label' }, label),
+          h('span', { className: 'pm-style-hint' }, hint),
+        ),
         h('input', {
           className: 'pm-style-swatch',
           type: 'color',
@@ -2050,14 +2089,25 @@ window.__ModuleLoader__.load({
       )
       return h('div', { className: 'pm-style' },
         h('p', { className: 'pm-style-desc' }, t('style.desc')),
-        row('accent', t('style.accent')),
-        row('panel', t('style.panel')),
-        row('card', t('style.card')),
-        row('ink', t('style.ink')),
-        row('dim', t('style.dim')),
-        row('line', t('style.line')),
-        h('label', { className: 'pm-style-row' },
-          h('span', { className: 'pm-style-label' }, t('style.radius')),
+        h('div', { className: 'pm-style-preview' },
+          h('p', { className: 'pm-style-preview-title' }, t('style.preview')),
+          h('span', { className: 'pm-style-chip select' }, t('style.previewSelect')),
+          h('span', { className: 'pm-style-chip button' }, t('style.previewButton')),
+          h('span', { className: 'pm-style-chip head' }, t('style.previewHead')),
+          h('span', { className: 'pm-style-chip panel' }, t('style.previewPanel')),
+          h('span', { className: 'pm-style-chip muted' }, t('style.previewMuted')),
+        ),
+        row('accent', t('style.accent'), t('style.accentHint')),
+        row('panel', t('style.panel'), t('style.panelHint')),
+        row('card', t('style.card'), t('style.cardHint')),
+        row('ink', t('style.ink'), t('style.inkHint')),
+        row('dim', t('style.dim'), t('style.dimHint')),
+        row('line', t('style.line'), t('style.lineHint')),
+        h('div', { className: 'pm-style-row' },
+          h('div', { className: 'pm-style-text' },
+            h('span', { className: 'pm-style-label' }, t('style.radius')),
+            h('span', { className: 'pm-style-hint' }, t('style.radiusHint')),
+          ),
           h('span'),
           h('input', {
             className: 'pm-style-range',
@@ -2087,7 +2137,7 @@ window.__ModuleLoader__.load({
       .pm-ctx,
       .pm-ctx-overlay {
         --pm-ctx-accent: var(--hm-accent, #d9730d);
-        --pm-ctx-accent-strong: #b85c00;
+        --pm-ctx-accent-strong: color-mix(in srgb, var(--hm-accent, #d9730d) 78%, #000);
         --pm-ctx-accent-soft: color-mix(in srgb, var(--hm-accent, #d9730d) 13%, transparent);
         --pm-ctx-accent-ring: color-mix(in srgb, var(--hm-accent, #d9730d) 45%, transparent);
         --pm-ctx-accent-ink: #ffffff;
@@ -2107,7 +2157,7 @@ window.__ModuleLoader__.load({
       body[data-ds-dark-theme] .pm-ctx,
       body[data-ds-dark-theme] .pm-ctx-overlay {
         --pm-ctx-accent: var(--hm-accent, #ff9f43);
-        --pm-ctx-accent-strong: #ffb56b;
+        --pm-ctx-accent-strong: color-mix(in srgb, var(--hm-accent, #ff9f43) 78%, #fff);
         --pm-ctx-accent-soft: color-mix(in srgb, var(--hm-accent, #ff9f43) 18%, transparent);
         --pm-ctx-accent-ring: color-mix(in srgb, var(--hm-accent, #ff9f43) 50%, transparent);
         --pm-ctx-accent-ink: #241503;
