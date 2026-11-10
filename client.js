@@ -1423,16 +1423,16 @@ window.__ModuleLoader__.load({
     }
 
     /* 图标直接借宿主的：行标题前方那个 svg；借不到才画一个自己的。 */
-    /* 只借「行首图标」：展开箭头（chevron）也是 svg，排到它就会显示成 ^。 */
+    /* 只借「行首图标」：宿主展开时 leading 里只剩收起箭头，不能当图标用。 */
     function rowIcon(row, doc) {
-      let host = row.querySelector('[class*="_leading"] svg')
-      if (!host) {
-        for (const svg of row.querySelectorAll('svg')) {
-          if (svg.closest && svg.closest('[class*="chevron"]')) continue
-          host = svg
-          break
-        }
-      }
+      const leading = row.querySelector('[class*="_leading"]')
+      const svgs = leading ? leading.querySelectorAll('svg') : []
+      const toggle = row.querySelector('[data-disclosure-row][aria-expanded]')
+      const open = !!(toggle && toggle.getAttribute('aria-expanded') === 'true')
+      let host = null
+      /* 收起态：图标 + 悬停箭头（2 个 svg）或只有图标（1 个）；展开态：只有箭头。 */
+      if (svgs.length >= 2) host = svgs[0]
+      else if (svgs.length === 1 && !open) host = svgs[0]
       if (host && typeof host.cloneNode === 'function') {
         const clone = host.cloneNode(true)
         clone.setAttribute('aria-hidden', 'true')
@@ -1538,7 +1538,7 @@ window.__ModuleLoader__.load({
       close.className = 'hm-proc-drawer-close'
       close.setAttribute('aria-label', '关闭')
       close.textContent = '×'
-      close.addEventListener('click', () => closeProcessDrawer(doc))
+      close.addEventListener('click', () => closeProcessDrawer(doc, 'close-button'))
       head.appendChild(title)
       head.appendChild(meta)
       head.appendChild(close)
@@ -1582,9 +1582,13 @@ window.__ModuleLoader__.load({
       } else body.appendChild(doc.createTextNode('这一步没有可展开的正文'))
     }
 
-    function closeProcessDrawer(doc) {
+    function closeProcessDrawer(doc, reason) {
       const drawer = doc.querySelector('.' + PROC_POP_CLASS)
-      if (!drawer) return
+      if (!drawer || drawer.hidden) return
+      /* 诊断：记下是谁把抽屉关掉的，别靠猜。 */
+      if (typeof window !== 'undefined' && window.__heipmProc) {
+        window.__heipmProc.lastClose = { reason: reason || 'unknown', at: Date.now() }
+      }
       drawer.hidden = true
       drawer.removeAttribute('data-hm-proc-owner')
       for (const button of doc.querySelectorAll('.' + PROC_STEP_CLASS + '[aria-expanded="true"]')) {
@@ -1595,10 +1599,10 @@ window.__ModuleLoader__.load({
     function toggleProcessDetail(button, row, doc) {
       const drawer = ensureProcessDrawer(doc)
       if (!drawer.hidden && drawer.getAttribute('data-hm-proc-owner') === button.getAttribute('data-hm-proc-id')) {
-        closeProcessDrawer(doc)
+        closeProcessDrawer(doc, 'toggle-same')
         return
       }
-      closeProcessDrawer(doc)
+      closeProcessDrawer(doc, 'toggle-other')
       button.setAttribute('aria-expanded', 'true')
       /* 详情是「点开才挂载」的：先借宿主的开关把正文挂上，克隆完再收回，避免长期占着 DOM。 */
       const expanding = expandProcessRow(row)
@@ -1840,10 +1844,10 @@ window.__ModuleLoader__.load({
       const onPointerDown = event => {
         const target = event && event.target
         if (target && target.closest && (target.closest('.' + PROC_STEP_CLASS) || target.closest('.' + PROC_POP_CLASS))) return
-        closeProcessDrawer(doc)
+        closeProcessDrawer(doc, 'outside')
       }
       const onKeyDown = event => {
-        if (event && event.key === 'Escape') closeProcessDrawer(doc)
+        if (event && event.key === 'Escape') closeProcessDrawer(doc, 'escape')
       }
       doc.addEventListener('mousedown', onPointerDown, true)
       doc.addEventListener('keydown', onKeyDown, true)
@@ -1851,7 +1855,7 @@ window.__ModuleLoader__.load({
       if (typeof window !== 'undefined') {
         window.__heipmProc = {
           report: () => ({
-            build: 'a2.5',
+            build: 'a2.6',
             flows: doc.querySelectorAll(HOST_CONTRACT.chatFlow).length,
             rows: doc.querySelectorAll(HOST_CONTRACT.flowRow).length,
             shelves: doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']').length,
@@ -1878,7 +1882,7 @@ window.__ModuleLoader__.load({
         doc.removeEventListener('mousedown', onPointerDown, true)
         doc.removeEventListener('keydown', onKeyDown, true)
         if (typeof window !== 'undefined' && window.__heipmProc) delete window.__heipmProc
-        closeProcessDrawer(doc)
+        closeProcessDrawer(doc, 'dispose')
         const drawer = doc.querySelector('.' + PROC_POP_CLASS)
         if (drawer) drawer.remove()
         for (const shelf of doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']')) shelf.remove()
