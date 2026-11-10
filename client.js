@@ -1585,8 +1585,8 @@ window.__ModuleLoader__.load({
       const rows = []
       for (const row of container.querySelectorAll(HOST_CONTRACT.flowRow)) {
         const parent = row.parentElement
+        /* 只跳过「行里的行」；官方分组体 [data-step-process-content] 里的行正是过程行，必须处理。 */
         if (parent && parent.closest('[data-chat-flow-kind]')) continue
-        if (parent && parent.closest('[data-step-process-content]')) continue
         rows.push(row)
       }
       return rows
@@ -1619,13 +1619,18 @@ window.__ModuleLoader__.load({
       if (!rows.length) return 0
       const roles = rows.map((row, index) => roleOfFlowRow(row, index === rows.length - 1))
       const signature = rows.map(row => row.getAttribute('data-chat-flow-key')).join('|') + '#' + roles.join(',')
-      if (PROCESS_KEYS && PROCESS_KEYS.get(container) === signature) return 0
+      /* React 重建行后旧元素会丢 class，所以「签名没变」也得确认隐藏还在，不能直接跳过。 */
+      const settled = roles.every((role, index) => role !== 'process' || rows[index].classList.contains(PROC_ROW_CLASS))
+      if (settled && PROCESS_KEYS && PROCESS_KEYS.get(container) === signature) return 0
       const groups = planProcessGroups(roles)
       const live = new Set()
       let created = 0
       for (const group of groups) {
         const members = group.map(index => rows[index])
-        for (const row of members) live.add(row)
+        for (const row of members) {
+          live.add(row)
+          row.classList.add(PROC_ROW_CLASS)
+        }
         created += decorateProcessShelf(members[0], members, doc)
       }
       for (const row of container.querySelectorAll('.' + PROC_ROW_CLASS)) {
@@ -1720,6 +1725,9 @@ window.__ModuleLoader__.load({
       if (typeof window !== 'undefined') {
         window.__heipmProc = {
           report: () => ({
+            build: 'a2.2',
+            flows: doc.querySelectorAll(HOST_CONTRACT.chatFlow).length,
+            rows: doc.querySelectorAll(HOST_CONTRACT.flowRow).length,
             shelves: doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']').length,
             steps: doc.querySelectorAll('.' + PROC_STEP_CLASS).length,
             hidden: doc.querySelectorAll('.' + PROC_ROW_CLASS).length,
