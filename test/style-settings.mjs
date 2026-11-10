@@ -91,7 +91,9 @@ truthy('workspace menu accent follows the theme', SOURCE.includes('--pm-ctx-acce
 truthy('the selected-row text colour derives from the accent', SOURCE.includes('--pm-accent-strong: color-mix(in srgb, var(--hm-accent, #d9730d) 78%, #000);'))
 truthy('every colour row explains its scope', SOURCE.includes("'style.accentHint': '影响：选中行、按钮、hover、表格悬停、过程图标'"))
 truthy('the page renders a live preview of the scope', SOURCE.includes("'style.preview': '这些颜色作用范围的实时预览'") && SOURCE.includes("className: 'pm-style-preview'"))
-truthy('the preview shows the five surfaces', SOURCE.split('pm-style-chip ').length - 1 >= 5)
+truthy('the preview shows the five surfaces', (SOURCE.match(/chip\(/g) || []).length === 5)
+truthy('the settings page reads host tokens, not heipm colours', SOURCE.includes('.pm-style-label{color:var(--dsw-alias-label-primary,#eceef2)') && !SOURCE.includes('.pm-style-label{color:var(--hm-ink'))
+truthy('preview chips colour a dot instead of their text', SOURCE.includes('.pm-style-dot{border-radius:4px'))
 truthy('main panel accent follows the theme', SOURCE.includes('--pm-accent: var(--hm-accent, #d9730d);'))
 
 /* ---- 设置页注册 ---- */
