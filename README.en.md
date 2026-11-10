@@ -76,15 +76,26 @@ test/                    Dependency-free tests
 ## Install
 
 Requires DSH `>=0.2.2-rc.1 <0.2.3-0` (see `engines.dsh`) and Node `^22.19 || >=24`.
-Current version: **`0.20.0-rc.1`**. This project is distributed **from GitHub only; it is not published to npm**.
+Current version: **`0.20.0`**. This project is distributed **from GitHub only; it is not published to npm** — so it does not appear in the plugin marketplace; install it by address instead.
+
+**One-line install (recommended)**:
+
+```bash
+dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
+```
+
+`github:heiqisangx-crypto/dsh-heipm` works too, or pin a tag: `github:heiqisangx-crypto/dsh-heipm#v0.20.0`.
+Restart DSH afterwards, then enable any sub-plugin you want via [Configuration](#configuration).
+
+To pin an exact release, download the tag archive from [Releases](https://github.com/heiqisangx-crypto/dsh-heipm/releases), unpack it, and use the local link method below.
+
+**Local development install (for editing the code)**:
 
 1. Clone it anywhere:
 
    ```bash
    git clone https://github.com/heiqisangx-crypto/dsh-heipm.git D:/dsh-Workspace/dsh-heipm
    ```
-
-   Or download the source archive for a tag from [Releases](https://github.com/heiqisangx-crypto/dsh-heipm/releases).
 
 2. In your target profile (for example `~/.dsh/profiles/desktop`), edit `package.json`:
 

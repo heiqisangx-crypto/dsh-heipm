@@ -76,15 +76,26 @@ test/                    零依赖测试
 ## 安装
 
 要求：DSH `>=0.2.2-rc.1 <0.2.3-0`（见 `engines.dsh`），Node `^22.19 || >=24`。
-当前版本 **`0.20.0-rc.1`**。本项目**只从 GitHub 分发，未发布 npm**。
+当前版本 **`0.20.0`**。本项目**只从 GitHub 分发，未发布 npm**（因此插件市场里搜不到，请用下面的地址安装）。
+
+**一行安装（推荐）**：
+
+```bash
+dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
+```
+
+也可以写成 `github:heiqisangx-crypto/dsh-heipm`，或用具体 tag：`github:heiqisangx-crypto/dsh-heipm#v0.20.0`。
+装完**重启 DSH**；需要某个子插件时按[配置](#配置)打开。
+
+想固定到某个版本的源码包，从 [Releases](https://github.com/heiqisangx-crypto/dsh-heipm/releases) 下载对应 tag 的 zip 解压，然后按下面的本地 link 方式接上。
+
+**本地开发安装（改代码用这个）**：
 
 1. 克隆到任意目录：
 
    ```bash
    git clone https://github.com/heiqisangx-crypto/dsh-heipm.git D:/dsh-Workspace/dsh-heipm
    ```
-
-   或从 [Releases](https://github.com/heiqisangx-crypto/dsh-heipm/releases) 下载对应 tag 的源码包。
 
 2. 在目标 profile（例如 `~/.dsh/profiles/desktop`）的 `package.json` 中：
 
