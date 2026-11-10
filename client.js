@@ -1341,7 +1341,7 @@ window.__ModuleLoader__.load({
 
     const PROCESS_SHELF_CSS = `
 .hm-proc-row{display:none!important}
-.hm-proc-shelf{align-items:center;align-self:flex-start;background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.28);border-radius:999px;display:inline-flex;flex-wrap:wrap;gap:2px;margin:2px 0 6px;max-width:100%;padding:3px 6px}
+.hm-proc-shelf{align-items:center;align-self:flex-start;background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.28);border-radius:10px;display:inline-flex;flex-wrap:wrap;gap:2px;margin:2px 0 6px;max-width:100%;padding:3px 6px}
 .hm-proc-step{align-items:center;appearance:none;background:transparent;border:0;border-radius:9px;box-sizing:border-box;color:#a8adb8;cursor:pointer;display:inline-flex;height:32px;justify-content:center;line-height:1;padding:0;width:32px}
 .hm-proc-step:hover{background:rgba(255,159,67,.18);color:#ff9f43}
 .hm-proc-step[aria-expanded="true"]{background:rgba(255,159,67,.22);color:#ff9f43}
