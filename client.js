@@ -1195,13 +1195,17 @@ window.__ModuleLoader__.load({
       if (!doc || !doc.head || typeof doc.createElement !== 'function' || !css) return () => {}
       let tag = null
       if (typeof doc.querySelector === 'function') tag = doc.querySelector('style[data-plugin-css="heipm:markdown"]')
-      for (const node of doc.head.children) {
-        if (!tag && node.getAttribute && node.getAttribute('data-plugin-css') === 'heipm:markdown') tag = node
+      const children = doc.head.children
+      if (children) {
+        for (let index = 0; index < children.length; index += 1) {
+          const node = children[index]
+          if (!tag && node && node.getAttribute && node.getAttribute('data-plugin-css') === 'heipm:markdown') tag = node
+        }
       }
       if (!tag) {
         tag = doc.createElement('style')
         tag.setAttribute('data-dsh-heipm-markdown', '')
-        tag.dataset.plugin = 'dsh-heipm/markdown'
+        if (tag.dataset) tag.dataset.plugin = 'dsh-heipm/markdown'
         tag.setAttribute('data-plugin-css', 'heipm:markdown')
         doc.head.appendChild(tag)
       }
@@ -1265,12 +1269,19 @@ window.__ModuleLoader__.load({
       ensureStyles()
       ensureTables()
       decorateMarkdownTables(document)
+      let stopShelf = () => {}
+      try {
+        stopShelf = createProcessShelf()
+      } catch (error) {
+        if (typeof console !== 'undefined') console.error('[heipm-markdown] process shelf failed', error)
+      }
       return () => {
         if (tableObserver) tableObserver.disconnect()
         if (headObserver) headObserver.disconnect()
         tableObserver = null
         headObserver = null
         tableRoot = null
+        stopShelf()
         stopStyles()
         stripMarkdownTables(document)
       }
@@ -1312,6 +1323,425 @@ window.__ModuleLoader__.load({
       }
     }
 
+
+    /* ----- session process shelf: 过程行收进一条只有图标的框，点图标看详情 ----- */
+
+    const PROC_SHELF_ATTR = 'data-hm-proc-shelf'
+    const PROC_STEP_ATTR = 'data-hm-proc-step'
+    const PROC_ROW_CLASS = 'hm-proc-row'
+    const PROC_SHELF_CLASS = 'hm-proc-shelf'
+    const PROC_STEP_CLASS = 'hm-proc-step'
+    const PROC_POP_CLASS = 'hm-proc-pop'
+    const PROC_POP_HEAD_CLASS = 'hm-proc-pop-head'
+
+    const PROCESS_SHELF_CSS = `
+.hm-proc-row{display:none!important}
+.hm-proc-shelf{align-items:center;align-self:flex-start;background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.28);border-radius:999px;display:inline-flex;flex-wrap:wrap;gap:2px;margin:2px 0 6px;max-width:100%;padding:3px 6px}
+.hm-proc-step{align-items:center;appearance:none;background:transparent;border:0;border-radius:8px;box-sizing:border-box;color:#a8adb8;cursor:pointer;display:inline-flex;height:24px;justify-content:center;line-height:1;padding:0;width:24px}
+.hm-proc-step:hover{background:rgba(255,159,67,.18);color:#ff9f43}
+.hm-proc-step[aria-expanded="true"]{background:rgba(255,159,67,.22);color:#ff9f43}
+.hm-proc-step svg{display:block;fill:currentColor;height:14px;width:14px}
+.hm-proc-pop{background:var(--dsw-specific-menu,#171b21);border:1px solid rgba(148,163,184,.35);border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.5);box-sizing:border-box;color:#eceef2;font-size:13px;line-height:1.65;max-height:60vh;min-width:220px;overflow:auto;padding:12px 14px;position:fixed;z-index:1400}
+.hm-proc-pop[hidden]{display:none}
+.hm-proc-pop-head{border-bottom:1px solid rgba(148,163,184,.22);color:#a8adb8;font-size:12px;margin:0 0 8px;padding-bottom:6px}
+`
+
+    /* 一行算「过程」还是「正文」：只看 kind / groupPart / 内容特征，不认哈希类名。 */
+    function classifyFlowRow(row) {
+      const kind = row && row.kind
+      if (kind === 'tool-call' || kind === 'turn-process') return 'process'
+      if (kind === 'assistant-step') {
+        if (row.part === 'reasoning') return 'process'
+        if (row.part === 'response') return 'prose'
+        if (row.hasProse) return 'prose'
+        return row.hasThinking || row.hasTool ? 'process' : 'prose'
+      }
+      return 'prose'
+    }
+
+    /* 连续的过程行算一组；中间夹一条正文就断开。 */
+    function planProcessGroups(roles) {
+      const groups = []
+      let current = []
+      for (let index = 0; index < roles.length; index += 1) {
+        if (roles[index] === 'process') current.push(index)
+        else if (current.length) {
+          groups.push(current)
+          current = []
+        }
+      }
+      if (current.length) groups.push(current)
+      return groups
+    }
+
+    function insideThinking(node) {
+      return !!(node && node.closest && node.closest(HOST_CONTRACT.rowThinking))
+    }
+
+    function flowHasProse(row) {
+      for (const node of row.querySelectorAll('p, ul, ol, pre, table, blockquote, h1, h2, h3, h4, h5, h6')) {
+        if (!insideThinking(node)) return true
+      }
+      return false
+    }
+
+    function describeFlowRow(row) {
+      return {
+        kind: row.getAttribute('data-chat-flow-kind'),
+        part: row.getAttribute('data-chat-group-part') || '',
+        hasThinking: !!row.querySelector(HOST_CONTRACT.rowThinking),
+        hasTool: !!row.querySelector(HOST_CONTRACT.rowTool),
+        hasProse: flowHasProse(row),
+      }
+    }
+
+    function svgIcon(doc, path) {
+      const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      svg.setAttribute('viewBox', '0 0 16 16')
+      svg.setAttribute('aria-hidden', 'true')
+      const shape = doc.createElementNS('http://www.w3.org/2000/svg', 'path')
+      shape.setAttribute('d', path)
+      shape.setAttribute('fill', 'currentColor')
+      svg.appendChild(shape)
+      return svg
+    }
+
+    /* 图标直接借宿主的：行标题前方那个 svg；借不到才画一个自己的。 */
+    function rowIcon(row, doc) {
+      const host = row.querySelector('[data-disclosure-header] svg') || row.querySelector('svg')
+      if (host && typeof host.cloneNode === 'function') {
+        const clone = host.cloneNode(true)
+        clone.setAttribute('aria-hidden', 'true')
+        return clone
+      }
+      const kind = row.getAttribute('data-chat-flow-kind')
+      const path = kind === 'tool-call'
+        ? 'M8 2.4l5.6 5.6L8 13.6 2.4 8z'
+        : 'M8 1.4l1.5 4.1 4.1 1.5-4.1 1.5L8 12.6 6.5 8.5 2.4 7l4.1-1.5z'
+      return svgIcon(doc, path)
+    }
+
+    function rowSummary(row) {
+      const label = row.querySelector(HOST_CONTRACT.rowDisclosure)
+      const text = label ? label.textContent : row.textContent
+      return String(text || '').replace(/\s+/g, ' ').trim().slice(0, 60)
+    }
+
+    /* 展开/收起靠宿主自己的控件：它不响应除非 aria-expanded 真的变了。 */
+    function processToggle(row) {
+      for (const node of row.querySelectorAll('[data-sample][aria-expanded]')) return node
+      for (const node of row.querySelectorAll(HOST_CONTRACT.rowDisclosure)) {
+        if (node.getAttribute('aria-expanded') !== null) return node
+      }
+      return null
+    }
+
+    function expandProcessRow(row) {
+      const toggle = processToggle(row)
+      if (!toggle || toggle.getAttribute('aria-expanded') === 'true') return false
+      if (typeof toggle.click === 'function') toggle.click()
+      return true
+    }
+
+    function collapseProcessRow(row) {
+      const toggle = processToggle(row)
+      if (!toggle || toggle.getAttribute('aria-expanded') !== 'true') return
+      if (typeof toggle.click === 'function') toggle.click()
+    }
+
+    function detailBodyOf(row) {
+      return row.querySelector(HOST_CONTRACT.rowBody)
+        || row.querySelector('[data-sample="bash"]')
+        || row.querySelector('.ioCard')
+        || row
+    }
+
+    function later(fn) {
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => requestAnimationFrame(fn))
+        return
+      }
+      setTimeout(fn, 50)
+    }
+
+    function ensureProcessPopover(doc) {
+      const existing = doc.querySelector('.' + PROC_POP_CLASS)
+      if (existing) return existing
+      const pop = doc.createElement('div')
+      pop.className = PROC_POP_CLASS
+      pop.setAttribute('role', 'dialog')
+      pop.setAttribute('data-plugin-ui', 'heipm:process-shelf')
+      pop.hidden = true
+      doc.body.appendChild(pop)
+      return pop
+    }
+
+    function fillProcessPopover(pop, row, doc) {
+      const head = doc.createElement('div')
+      head.className = PROC_POP_HEAD_CLASS
+      head.textContent = rowSummary(row) || '过程'
+      const body = detailBodyOf(row)
+      pop.textContent = ''
+      pop.appendChild(head)
+      if (body && typeof body.cloneNode === 'function') pop.appendChild(body.cloneNode(true))
+      else pop.appendChild(doc.createTextNode('这一步没有可显示的内容'))
+    }
+
+    function positionProcessPopover(pop, anchor, doc) {
+      const win = doc.defaultView || window
+      const width = win && win.innerWidth ? win.innerWidth : 1200
+      const height = win && win.innerHeight ? win.innerHeight : 800
+      pop.style.width = Math.min(560, width - 24) + 'px'
+      pop.style.left = '8px'
+      pop.style.top = '8px'
+      const rect = anchor.getBoundingClientRect()
+      const box = pop.getBoundingClientRect ? pop.getBoundingClientRect() : { width: 0, height: 0 }
+      let left = Math.min(Math.max(8, rect.left), Math.max(8, width - box.width - 8))
+      let top = rect.bottom + 8
+      if (top + box.height > height - 8) top = Math.max(8, rect.top - box.height - 8)
+      pop.style.left = left + 'px'
+      pop.style.top = top + 'px'
+    }
+
+    function closeProcessPopover(doc) {
+      const pop = doc.querySelector('.' + PROC_POP_CLASS)
+      if (!pop) return
+      pop.hidden = true
+      pop.removeAttribute('data-hm-proc-owner')
+      for (const button of doc.querySelectorAll('.' + PROC_STEP_CLASS + '[aria-expanded="true"]')) {
+        button.setAttribute('aria-expanded', 'false')
+      }
+    }
+
+    function toggleProcessDetail(button, row, doc) {
+      const pop = ensureProcessPopover(doc)
+      if (!pop.hidden && pop.getAttribute('data-hm-proc-owner') === button.getAttribute('data-hm-proc-id')) {
+        closeProcessPopover(doc)
+        return
+      }
+      closeProcessPopover(doc)
+      button.setAttribute('aria-expanded', 'true')
+      /* 详情是「点开才挂载」的：先借宿主的开关把正文挂上，克隆完再收回，避免长期占着 DOM。 */
+      const expanding = expandProcessRow(row)
+      const show = attempt => {
+        if (!button.isConnected || button.getAttribute('data-hm-proc-id') === null) return
+        const body = detailBodyOf(row)
+        /* 正文是条件挂载的：宿主还没提交完就再等一帧，别急着把整行塞进浮层。 */
+        if (expanding && body === row && attempt < 2) {
+          setTimeout(() => show(attempt + 1), 120)
+          return
+        }
+        fillProcessPopover(pop, row, doc)
+        pop.setAttribute('data-hm-proc-owner', button.getAttribute('data-hm-proc-id'))
+        pop.hidden = false
+        positionProcessPopover(pop, button, doc)
+        if (expanding) collapseProcessRow(row)
+      }
+      if (expanding) later(() => show(0))
+      else show(0)
+    }
+
+    function shelfButton(row, doc) {
+      const button = doc.createElement('button')
+      button.type = 'button'
+      button.className = PROC_STEP_CLASS
+      button.setAttribute(PROC_STEP_ATTR, '')
+      button.setAttribute('data-hm-proc-id', String(row.getAttribute('data-chat-flow-key') || ''))
+      button.setAttribute('aria-expanded', 'false')
+      const summary = rowSummary(row)
+      button.title = summary || '过程'
+      button.setAttribute('aria-label', button.title)
+      button.appendChild(rowIcon(row, doc))
+      button.addEventListener('click', event => {
+        if (event) {
+          if (typeof event.preventDefault === 'function') event.preventDefault()
+          if (typeof event.stopPropagation === 'function') event.stopPropagation()
+        }
+        toggleProcessDetail(button, row, doc)
+      })
+      return button
+    }
+
+    function decorateProcessShelf(first, members, doc) {
+      const parent = first.parentNode
+      if (!parent) return 0
+      for (const row of members) row.classList.add(PROC_ROW_CLASS)
+      const keys = members.map(row => row.getAttribute('data-chat-flow-key')).join('|')
+      let shelf = first.previousElementSibling
+      if (!shelf || shelf.getAttribute(PROC_SHELF_ATTR) === null) {
+        shelf = doc.createElement('div')
+        shelf.className = PROC_SHELF_CLASS
+        shelf.setAttribute(PROC_SHELF_ATTR, '')
+        parent.insertBefore(shelf, first)
+      }
+      if (shelf.getAttribute('data-hm-proc-keys') === keys) return 0
+      shelf.setAttribute('data-hm-proc-keys', keys)
+      shelf.textContent = ''
+      for (const row of members) shelf.appendChild(shelfButton(row, doc))
+      return 1
+    }
+
+    function topFlowRows(container) {
+      const rows = []
+      for (const row of container.querySelectorAll(HOST_CONTRACT.flowRow)) {
+        const parent = row.parentElement
+        if (parent && parent.closest('[data-chat-flow-kind]')) continue
+        if (parent && parent.closest('[data-step-process-content]')) continue
+        rows.push(row)
+      }
+      return rows
+    }
+
+    function flowContainers(root) {
+      const found = []
+      if (!root || typeof root.querySelectorAll !== 'function') return found
+      if (root.getAttribute && root.getAttribute('data-slot') === 'conversation.chat.flow') found.push(root)
+      for (const node of root.querySelectorAll(HOST_CONTRACT.chatFlow)) {
+        if (found.indexOf(node) < 0) found.push(node)
+      }
+      return found
+    }
+
+    /* 每行的归类只在第一次算；只有最后一行（还在流式长）每次重算。 */
+    const PROCESS_ROLES = typeof WeakMap === 'function' ? new WeakMap() : null
+    const PROCESS_KEYS = typeof WeakMap === 'function' ? new WeakMap() : null
+
+    function roleOfFlowRow(row, last) {
+      if (!last && PROCESS_ROLES && PROCESS_ROLES.has(row)) return PROCESS_ROLES.get(row)
+      const role = classifyFlowRow(describeFlowRow(row))
+      if (PROCESS_ROLES) PROCESS_ROLES.set(row, role)
+      return role
+    }
+
+    function decorateFlowContainer(container) {
+      const doc = container.ownerDocument
+      const rows = topFlowRows(container)
+      if (!rows.length) return 0
+      const roles = rows.map((row, index) => roleOfFlowRow(row, index === rows.length - 1))
+      const signature = rows.map(row => row.getAttribute('data-chat-flow-key')).join('|') + '#' + roles.join(',')
+      if (PROCESS_KEYS && PROCESS_KEYS.get(container) === signature) return 0
+      const groups = planProcessGroups(roles)
+      const live = new Set()
+      let created = 0
+      for (const group of groups) {
+        const members = group.map(index => rows[index])
+        for (const row of members) live.add(row)
+        created += decorateProcessShelf(members[0], members, doc)
+      }
+      for (const row of container.querySelectorAll('.' + PROC_ROW_CLASS)) {
+        if (!live.has(row)) row.classList.remove(PROC_ROW_CLASS)
+      }
+      const keep = new Set()
+      for (const group of groups) keep.add(rows[group[0]].getAttribute('data-chat-flow-key'))
+      for (const shelf of container.querySelectorAll('[' + PROC_SHELF_ATTR + ']')) {
+        const keys = String(shelf.getAttribute('data-hm-proc-keys') || '')
+        const firstKey = keys ? keys.split('|')[0] : ''
+        if (!keep.has(firstKey)) {
+          shelf.remove()
+          continue
+        }
+        const next = shelf.nextElementSibling
+        if (!next || !next.classList || !next.classList.contains(PROC_ROW_CLASS)) shelf.remove()
+      }
+      if (PROCESS_KEYS) PROCESS_KEYS.set(container, signature)
+      return created
+    }
+
+    function decorateProcessShelves(root) {
+      let created = 0
+      for (const container of flowContainers(root)) created += decorateFlowContainer(container)
+      return created
+    }
+
+    function installProcessShelfStyles(doc) {
+      let tag = doc.querySelector('style[data-plugin-css="heipm:process-shelf"]')
+      if (!tag) {
+        tag = doc.createElement('style')
+        tag.setAttribute('data-plugin-css', 'heipm:process-shelf')
+        tag.setAttribute('data-dsh-heipm-process-shelf', '')
+        doc.head.appendChild(tag)
+      }
+      tag.textContent = PROCESS_SHELF_CSS
+      return () => {
+        if (tag && typeof tag.remove === 'function') tag.remove()
+      }
+    }
+
+    function createProcessShelf() {
+      if (typeof document === 'undefined' || !document.body) return () => {}
+      if (typeof document.querySelector !== 'function' || typeof document.querySelectorAll !== 'function') return () => {}
+      if (typeof document.createElement !== 'function' || typeof document.addEventListener !== 'function') return () => {}
+      if (typeof MutationObserver !== 'function') return () => {}
+      if (uiFeatureDisabled('process-shelf')) return () => {}
+      const doc = document
+      const dropStyles = installProcessShelfStyles(doc)
+      let scheduled = false
+      let stopped = false
+      const run = () => {
+        scheduled = false
+        if (stopped) return
+        decorateProcessShelves(doc)
+      }
+      const schedule = () => {
+        if (scheduled || stopped) return
+        scheduled = true
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run)
+        else setTimeout(run, 30)
+      }
+      const observer = new MutationObserver(records => {
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (node.nodeType !== 1) continue
+            const marked = node.getAttribute && node.getAttribute('data-chat-flow-key') !== null
+            const holds = node.querySelector && node.querySelector(HOST_CONTRACT.flowRow)
+            if (marked || holds) {
+              schedule()
+              return
+            }
+          }
+          if (record.removedNodes.length) {
+            schedule()
+            return
+          }
+        }
+      })
+      observer.observe(doc.body, { childList: true, subtree: true })
+      const onPointerDown = event => {
+        const target = event && event.target
+        if (target && target.closest && target.closest('.' + PROC_STEP_CLASS)) return
+        closeProcessPopover(doc)
+      }
+      const onKeyDown = event => {
+        if (event && event.key === 'Escape') closeProcessPopover(doc)
+      }
+      doc.addEventListener('mousedown', onPointerDown, true)
+      doc.addEventListener('keydown', onKeyDown, true)
+      /* 诊断面：页面里量「收纳了几组、藏了几行」，比肉眼猜可靠。 */
+      if (typeof window !== 'undefined') {
+        window.__heipmProc = {
+          report: () => ({
+            shelves: doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']').length,
+            steps: doc.querySelectorAll('.' + PROC_STEP_CLASS).length,
+            hidden: doc.querySelectorAll('.' + PROC_ROW_CLASS).length,
+          }),
+          rescan: () => run(),
+        }
+      }
+      run()
+      return () => {
+        stopped = true
+        observer.disconnect()
+        doc.removeEventListener('mousedown', onPointerDown, true)
+        doc.removeEventListener('keydown', onKeyDown, true)
+        if (typeof window !== 'undefined' && window.__heipmProc) delete window.__heipmProc
+        closeProcessPopover(doc)
+        const pop = doc.querySelector('.' + PROC_POP_CLASS)
+        if (pop) pop.remove()
+        for (const shelf of doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']')) shelf.remove()
+        for (const row of doc.querySelectorAll('.' + PROC_ROW_CLASS)) row.classList.remove(PROC_ROW_CLASS)
+        dropStyles()
+      }
+    }
 
     /* ----- workspace context menu on the host sidebar ----- */
 
@@ -1520,6 +1950,12 @@ window.__ModuleLoader__.load({
     const HOST_CONTRACT = {
       workspaceRow: '[data-row-key^="workspace:"]',
       workspaceTitle: '[class*="projectText"] [class*="title"]',
+      chatFlow: '[data-slot="conversation.chat.flow"]',
+      flowRow: '[data-chat-flow-key][data-chat-flow-kind]',
+      rowThinking: '[data-variant="think"]',
+      rowDisclosure: '[data-disclosure-row]',
+      rowTool: '[data-tool], [data-sample]',
+      rowBody: '[class*="_thinkBody"], [class*="_bodyWrap"], [class*="_bodyScroll"]',
     }
 
     const UI_DISABLED_KEY = 'dsh-heipm:ui:disabled:v1'
@@ -2857,6 +3293,10 @@ window.__ModuleLoader__.load({
         installWorkspaceContextMenu,
         HOST_CONTRACT,
         uiFeatureDisabled,
+        classifyFlowRow,
+        planProcessGroups,
+        createProcessShelf,
+        PROCESS_SHELF_CSS,
         workspaceKeyId,
         workspaceRowId,
         normalizeWorkspaceTitle,

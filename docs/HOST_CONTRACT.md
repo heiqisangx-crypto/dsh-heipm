@@ -23,6 +23,11 @@
 | 主面板 / 侧栏入口 | `sidebar.panellist`、`main` 槽位 | Slot | 0.2.1-rc.3 | 不注册入口 |
 | 任务清单样式 | `.pm-quest-*`（自有 class） | 自有 DOM | 0.2.1-rc.3 | 不影响宿主 |
 | Markdown 表格 | `.cv-table`、`[class*="_tableScroll"]`、`[class*="_tableFill"]` | DOM class | 0.2.1-rc.3 | 不改表格 |
+| 过程收纳（图标条） | `[data-slot="conversation.chat.flow"]` | DOM `data-*` | 0.2.2-rc.1（静态核对） | 不挂载 |
+| 过程收纳（图标条） | 行：`[data-chat-flow-key][data-chat-flow-kind]`、`data-chat-group-part` | DOM `data-*` | 0.2.2-rc.1（静态核对） | 不挂载 |
+| 过程收纳（图标条） | 思考：`[data-variant="think"]`；工具：`[data-tool]`、`[data-sample]` | DOM `data-*` | 0.2.2-rc.1（静态核对） | 该类行不收纳 |
+| 过程收纳（图标条） | 展开控件 `[data-disclosure-row][aria-expanded]`；正文 `[class*="_thinkBody"]`、`[class*="_bodyWrap"]`、`[class*="_bodyScroll"]` | DOM class | 0.2.2-rc.1（静态核对） | 详情看不到，仍收纳 |
+| 过程收纳（图标条） | `hm-proc-shelf`、`hm-proc-row`（自有 class） | 自有 DOM | 0.2.2-rc.1（静态核对） | 不影响宿主 |
 | 经验流程 / 任务清单 | `systemPrompt`、`commands`、`skills` 服务 | Service | 0.2.1-rc.3 | 子插件不加载 |
 
 > `docs` 里没有列出的选择器，不允许在代码里出现。
