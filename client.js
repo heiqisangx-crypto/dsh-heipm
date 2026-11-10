@@ -1353,7 +1353,9 @@ window.__ModuleLoader__.load({
 .hm-proc-drawer-meta{color:#a8adb8;font-size:12px;margin-left:auto;white-space:nowrap}
 .hm-proc-drawer-close{appearance:none;background:transparent;border:0;border-radius:8px;color:#a8adb8;cursor:pointer;flex:0 0 auto;font-size:18px;height:28px;line-height:1;padding:0;width:28px}
 .hm-proc-drawer-close:hover{background:rgba(148,163,184,.14);color:#eceef2}
-.hm-proc-drawer-body{flex:1 1 auto;min-height:0;overflow:auto;padding:14px 16px}
+.hm-proc-drawer-body{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:auto;padding:14px 16px}
+.hm-proc-drawer-body>*{flex:1 1 auto;min-height:0;max-height:none!important;overflow:visible!important}
+.hm-proc-drawer-body [class*="_body"],.hm-proc-drawer-body [class*="_bodyScroll"],.hm-proc-drawer-body [class*="_ioSection"],.hm-proc-drawer-body [class*="_code"]{max-height:none!important;overflow:visible!important}
 `
 
     /* 一行算「过程」还是「正文」：只看 kind / groupPart / 内容特征，不认哈希类名。 */
@@ -1565,8 +1567,19 @@ window.__ModuleLoader__.load({
       const detail = detailBodyOf(row)
       if (!body) return
       body.textContent = ''
-      if (detail && detail !== row && typeof detail.cloneNode === 'function') body.appendChild(detail.cloneNode(true))
-      else body.appendChild(doc.createTextNode('这一步没有可展开的正文'))
+      if (detail && detail !== row && typeof detail.cloneNode === 'function') {
+        const clone = detail.cloneNode(true)
+        /* 宿主给正文挂了行内 max-height/overflow（限高小窗），抽屉里要占满，清掉。 */
+        if (clone.querySelectorAll) {
+          for (const node of clone.querySelectorAll('[style]')) {
+            if (!node.style) continue
+            node.style.maxHeight = ''
+            node.style.height = ''
+            node.style.overflow = ''
+          }
+        }
+        body.appendChild(clone)
+      } else body.appendChild(doc.createTextNode('这一步没有可展开的正文'))
     }
 
     function closeProcessDrawer(doc) {
@@ -1838,7 +1851,7 @@ window.__ModuleLoader__.load({
       if (typeof window !== 'undefined') {
         window.__heipmProc = {
           report: () => ({
-            build: 'a2.4',
+            build: 'a2.5',
             flows: doc.querySelectorAll(HOST_CONTRACT.chatFlow).length,
             rows: doc.querySelectorAll(HOST_CONTRACT.flowRow).length,
             shelves: doc.querySelectorAll('[' + PROC_SHELF_ATTR + ']').length,
@@ -1847,6 +1860,15 @@ window.__ModuleLoader__.load({
             timed: PROC_STEP_TIMES ? PROC_STEP_TIMES.size : 0,
           }),
           rescan: () => run(),
+          dumpDrawer: () => {
+            const body = doc.querySelector('.' + PROC_DRAWER_BODY_CLASS)
+            const child = body && body.firstElementChild
+            return {
+              child: child ? String(child.className) : null,
+              height: child && child.getBoundingClientRect ? Math.round(child.getBoundingClientRect().height) : 0,
+              html: body ? String(body.innerHTML || '').slice(0, 240) : '',
+            }
+          },
         }
       }
       run()
