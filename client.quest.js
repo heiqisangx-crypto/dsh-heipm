@@ -30,6 +30,15 @@ window.__ModuleLoader__.load({
       'error.tooLarge': 'This task list is too large to show here.',
       'empty.title': 'No task list yet',
       'empty.body': 'This project has no {path}. Ask for a new requirement to create it, then refresh.',
+      'view.all': 'All tasks',
+      'view.track': 'Tracking',
+      'track.pick': 'Track requirement',
+      'track.untrack': 'Stop tracking',
+      'track.active': 'Tracking',
+      'track.empty': 'Nothing tracked yet. Pick a requirement below to keep it in view.',
+      'track.left': '{count} left',
+      'track.locked': 'Tracked: stays expanded',
+      'track.picker': 'Track a requirement (click again to stop)',
     }
 
     const ZH = {
@@ -54,6 +63,21 @@ window.__ModuleLoader__.load({
       'error.tooLarge': '任务清单太大，无法在这里显示。',
       'empty.title': '还没有任务清单',
       'empty.body': '这个项目下没有 {path}。提出「新需求」后会生成，再刷新即可看到。',
+      'view.all': '全部任务',
+      'view.track': '任务跟踪',
+      'track.pick': '跟踪需求',
+      'track.untrack': '取消跟踪',
+      'track.active': '跟踪中',
+      'track.empty': '还没有跟踪任何需求，在下面选一个放进来。',
+      'track.left': '剩 {count}',
+      'track.locked': '跟踪中：保持展开',
+      'track.picker': '跟踪需求（再点一次取消）',
+      'track.open': '跟踪需求',
+      'track.close': '收起',
+      'track.selected': '已跟踪 {count}',
+      'track.all': '全部 {count}',
+      'track.search': '搜索需求…',
+      'track.none': '没有匹配的需求',
     }
 
     const CSS = `      .pm-quest-list { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px 32px; overflow: auto; min-height: 0; }
@@ -115,7 +139,51 @@ window.__ModuleLoader__.load({
         border: 1px solid var(--dsw-alias-border-l1); color: var(--dsw-alias-label-secondary);
       }
       .pm-quest-label[data-state="done"] { color: #2ea043; border-color: color-mix(in srgb, #2ea043 55%, transparent); }
-      .pm-quest-banner { font-size: 12px; color: var(--dsw-alias-state-error-primary); }`
+      .pm-quest-banner { font-size: 12px; color: var(--dsw-alias-state-error-primary); }
+      .pm-quest-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-bottom: 2px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+      .pm-quest-tab {
+        display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; margin-bottom: -3px; border: 0; border-bottom: 2px solid transparent;
+        background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 13px; cursor: pointer;
+      }
+      .pm-quest-tab:hover { color: var(--pm-accent-strong); }
+      .pm-quest-tab[aria-selected="true"] { color: var(--pm-accent-strong); border-bottom-color: var(--pm-accent); font-weight: 600; }
+      .pm-quest-tab-count { font-variant-numeric: tabular-nums; opacity: .75; }
+      .pm-quest-pickbar { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+      .pm-quest-pickhead { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+      .pm-quest-pickopen {
+        display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px;
+        border: 1px dashed var(--dsw-alias-border-l1); background: transparent; color: var(--dsw-alias-label-secondary);
+        font: inherit; font-size: 12px; cursor: pointer;
+      }
+      .pm-quest-pickopen:hover, .pm-quest-pickopen[aria-expanded="true"] { border-color: var(--pm-accent); color: var(--pm-accent-strong); }
+      .pm-quest-picknote { font-size: 12px; color: var(--dsw-alias-label-secondary); cursor: default; }
+      .pm-quest-panel {
+        display: flex; flex-direction: column; gap: 2px; max-height: 280px; overflow: auto; padding: 6px;
+        border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-base);
+      }
+      .pm-quest-panel-search { position: sticky; top: 0; z-index: 1; padding: 2px 4px 6px; background: var(--dsw-alias-bg-base); }
+      .pm-quest-panel-search input {
+        width: 100%; box-sizing: border-box; padding: 5px 9px; border-radius: 8px; font: inherit; font-size: 12px;
+        border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary);
+      }
+      .pm-quest-option {
+        display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; border: 0; border-radius: 7px;
+        background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
+      }
+      .pm-quest-option:hover { background: var(--pm-accent-softer); }
+      .pm-quest-option[data-on="true"] { color: var(--pm-accent-strong); }
+      .pm-quest-option-tick { flex: 0 0 auto; width: 14px; text-align: center; color: var(--pm-accent-strong); }
+      .pm-quest-option-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .pm-quest-option-num { flex: 0 0 auto; font-variant-numeric: tabular-nums; opacity: .7; }
+      .pm-quest-panel-empty { padding: 6px 8px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+      .pm-quest-label[data-state="tracked"] { color: var(--pm-accent-strong); border-color: var(--pm-accent); background: var(--pm-accent-soft); }
+      .pm-quest-track {
+        flex: 0 0 auto; margin-top: 2px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1);
+        background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11px; line-height: 1.6; cursor: pointer; opacity: 0;
+      }
+      .pm-quest-row:hover .pm-quest-track, .pm-quest-track[data-on="true"] { opacity: 1; }
+      .pm-quest-track:hover { border-color: var(--pm-accent); color: var(--pm-accent-strong); }
+      .pm-quest-track[data-on="true"] { border-color: var(--pm-accent); color: var(--pm-accent-strong); background: var(--pm-accent-soft); }`
 
     const NEXT_STATE = { open: 'awaiting', awaiting: 'done', done: 'open' }
 
@@ -130,11 +198,11 @@ window.__ModuleLoader__.load({
 
     /** 只渲染行内代码与加粗，其余按纯文本输出。 */
     function renderInline(text) {
-      const parts = String(text || '').split(new RegExp('(\\*\\*[^*]+\\*\\*|`[^`]+`)', 'g'))
+      const parts = String(text || '').split(new RegExp("([*][*][^*]+[*][*]|`[^`]+`)", 'g'))
       return parts.map((part, index) => {
         if (!part) return null
         if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) return h('strong', { key: index }, part.slice(2, -2))
-        if (part.length > 2 && part.charAt(0) === ` && part.charAt(part.length - 1) === `) return h('code', { key: index, className: 'pm-quest-code' }, part.slice(1, -1))
+        if (part.length > 2 && part.charAt(0) === '`' && part.charAt(part.length - 1) === '`') return h('code', { key: index, className: 'pm-quest-code' }, part.slice(1, -1))
         return h(React.Fragment, { key: index }, part)
       })
     }
@@ -169,6 +237,30 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /** 跟踪态存浏览器本地，不写任务清单文件。 */
+    function readTracked(projectPath) {
+      try {
+        const raw = window.localStorage.getItem('dsh-heipm:quest:tracked:' + projectPath)
+        const list = JSON.parse(raw || '[]')
+        return Array.isArray(list) ? list.map(Number).filter(Number.isFinite) : []
+      } catch {
+        return []
+      }
+    }
+
+    function writeTracked(projectPath, lines) {
+      try {
+        window.localStorage.setItem('dsh-heipm:quest:tracked:' + projectPath, JSON.stringify(lines))
+      } catch {}
+    }
+
+    /** 大任务下未完成子任务数；没有子任务返回 null。 */
+    function openInBranch(node) {
+      const children = node.children || []
+      if (!children.length) return null
+      return flatten(children).filter(child => child.state !== 'done').length
+    }
+
     const STYLE_ATTR = 'heipm:quest'
 
     /** 插件没有 styles 服务，自建一个 style 标签挂到 head，且只装一次。 */
@@ -195,6 +287,10 @@ window.__ModuleLoader__.load({
         const [busy, setBusy] = useState({})
         const [reloadKey, setReloadKey] = useState(0)
         const [showDone, setShowDone] = useState(false)
+        const [view, setView] = useState('all')
+        const [tracked, setTracked] = useState([])
+        const [picking, setPicking] = useState(false)
+        const [pickQuery, setPickQuery] = useState('')
         const alive = useRef(true)
         const projectPath = project && project.path ? project.path : null
 
@@ -204,6 +300,10 @@ window.__ModuleLoader__.load({
         }, [])
 
         useEffect(() => {
+          setView('all')
+          setPicking(false)
+          setPickQuery('')
+          setTracked(projectPath ? readTracked(projectPath) : [])
           setDoc(null)
           setPhase('loading')
           setError(null)
@@ -237,6 +337,12 @@ window.__ModuleLoader__.load({
         useEffect(() => {
           if (typeof onCounts === 'function') onCounts(counts)
         }, [counts.total, counts.done, counts.awaiting, counts.open, onCounts])
+
+        function toggleTrack(line) {
+          const next = tracked.includes(line) ? tracked.filter(value => value !== line) : tracked.concat(line)
+          setTracked(next)
+          if (projectPath) writeTracked(projectPath, next)
+        }
 
         function toggleBranch(line) {
           setExpanded(current => ({ ...current, [line]: !current[line] }))
@@ -315,7 +421,9 @@ window.__ModuleLoader__.load({
 
         function renderBranch(item, depth = 0) {
           const children = item.children || []
-          const isOpen = Boolean(expanded[item.line])
+          const isTracked = depth === 0 && tracked.includes(item.line)
+          // 被跟踪的大任务保持展开，点标题不会收起。
+          const isOpen = isTracked || Boolean(expanded[item.line])
           const isDone = (doc.pending[item.line] || 0) === 0
           const caret = h('svg', {
             width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
@@ -331,14 +439,27 @@ window.__ModuleLoader__.load({
               type: 'button',
               className: 'pm-quest-toggle',
               'aria-expanded': isOpen,
-              title: isOpen ? t('action.collapse') : t('action.expand'),
-              'aria-label': isOpen ? t('action.collapse') : t('action.expand'),
-              onClick: () => toggleBranch(item.line),
+              title: isTracked ? t('track.locked') : isOpen ? t('action.collapse') : t('action.expand'),
+              'aria-label': isTracked ? t('track.locked') : isOpen ? t('action.collapse') : t('action.expand'),
+              'aria-disabled': isTracked ? 'true' : undefined,
+              onClick: () => { if (!isTracked) toggleBranch(item.line) },
             }, caret),
             h('div', { className: 'pm-quest-body' },
-              h('button', { type: 'button', className: 'pm-quest-head', onClick: () => toggleBranch(item.line) },
+              h('button', { type: 'button', className: 'pm-quest-head', onClick: () => { if (!isTracked) toggleBranch(item.line) } },
                 h('span', { className: 'pm-quest-head-text' }, renderInline(item.label)),
                 h('span', { className: 'pm-quest-label', 'data-state': isDone ? 'done' : 'open' }, isDone ? t('state.done') : t('state.open')),
+                isTracked ? h('span', { className: 'pm-quest-label', 'data-state': 'tracked' }, t('track.active')) : null,
+                depth === 0
+                  ? h('button', {
+                      type: 'button',
+                      className: 'pm-quest-track',
+                      'data-on': isTracked ? 'true' : 'false',
+                      'data-line': item.line,
+                      title: isTracked ? t('track.untrack') : t('track.pick'),
+                      'aria-label': isTracked ? t('track.untrack') : t('track.pick'),
+                      onClick: () => toggleTrack(item.line),
+                    }, isTracked ? t('track.untrack') : t('track.pick'))
+                  : null,
               ),
               isOpen
                 ? h('div', { className: 'pm-quest-children' }, children.map(child => (child.children && child.children.length) ? renderBranch(child, depth + 1) : renderLeaf(child)))
@@ -395,7 +516,101 @@ window.__ModuleLoader__.load({
           h('span', { className: 'pm-quest-group-count' }, showDone ? t('group.hideDone') : t('group.showDone', { count: doneItems.length })),
         )
 
-        return h('div', { className: 'pm-quest-list', 'data-quest': doc.relativePath },
+        const left = doc.items.filter(item => !isFinished(item)).length
+        const trackedItems = doc.items.filter(item => tracked.includes(item.line))
+
+        const tabs = h('div', { className: 'pm-quest-tabs', role: 'tablist' },
+          h('button', {
+            type: 'button',
+            role: 'tab',
+            className: 'pm-quest-tab',
+            'data-view': 'all',
+            'aria-selected': view === 'all' ? 'true' : 'false',
+            onClick: () => setView('all'),
+          },
+            h('span', null, t('view.all')),
+            h('span', { className: 'pm-quest-tab-count' }, String(left)),
+          ),
+          h('button', {
+            type: 'button',
+            role: 'tab',
+            className: 'pm-quest-tab',
+            'data-view': 'track',
+            'aria-selected': view === 'track' ? 'true' : 'false',
+            onClick: () => setView('track'),
+          },
+            h('span', null, t('view.track')),
+            trackedItems.length
+              ? h('span', { className: 'pm-quest-tab-count' }, trackedItems.map(item => t('track.left', { count: openInBranch(item) || 0 })).join(' · '))
+              : null,
+            h('span', { className: 'pm-quest-tab-count' }, String(trackedItems.length)),
+          ),
+        )
+
+        // 大需求可能上百条，平铺会被撑成一墙标签：默认只留一行，点开才是可搜索的列表。
+        const allBranches = doc.items.filter(item => openInBranch(item) !== null)
+        const needle = pickQuery.trim().toLowerCase()
+        const options = needle ? allBranches.filter(item => String(item.label).toLowerCase().includes(needle)) : allBranches
+
+        const picker = h('div', { className: 'pm-quest-pickbar' },
+          h('div', { className: 'pm-quest-pickhead' },
+          h('button', {
+            type: 'button',
+            className: 'pm-quest-pickopen',
+            'aria-expanded': picking ? 'true' : 'false',
+            onClick: () => setPicking(value => !value),
+          }, picking ? t('track.close') : t('track.open')),
+          h('span', { className: 'pm-quest-picknote' },
+            t('track.selected', { count: trackedItems.length }) + ' · ' + t('track.all', { count: allBranches.length }),
+          ),
+          ),
+          picking
+            ? h('div', { className: 'pm-quest-panel' },
+                h('div', { className: 'pm-quest-panel-search' },
+                  h('input', {
+                    type: 'search',
+                    value: pickQuery,
+                    placeholder: t('track.search'),
+                    'aria-label': t('track.search'),
+                    onChange: event => setPickQuery(event && event.target ? String(event.target.value) : ''),
+                  }),
+                ),
+                options.length
+                  ? options.map(item => h('button', {
+                      type: 'button',
+                      key: item.line,
+                      className: 'pm-quest-option',
+                      'data-on': tracked.includes(item.line) ? 'true' : 'false',
+                      'data-line': item.line,
+                      title: tracked.includes(item.line) ? t('track.untrack') : t('track.pick'),
+                      onClick: () => toggleTrack(item.line),
+                    },
+                      h('span', { className: 'pm-quest-option-tick' }, tracked.includes(item.line) ? '✓' : ''),
+                      h('span', { className: 'pm-quest-option-label' }, renderInline(item.label)),
+                      h('span', { className: 'pm-quest-option-num' }, String(doc.pending[item.line] || 0)),
+                    ))
+                  : h('div', { className: 'pm-quest-panel-empty' }, t('track.none')),
+              )
+            : null,
+        )
+
+        if (view === 'track') {
+          return h('div', { className: 'pm-quest-list', 'data-quest': doc.relativePath, 'data-view': 'track' },
+            tabs,
+            h('div', { className: 'pm-quest-summary' },
+              notice ? h('span', { className: 'pm-quest-banner', role: 'alert' }, notice) : null,
+            ),
+            doc.items.filter(item => openInBranch(item) !== null).length
+              ? picker
+              : h('div', { className: 'pm-placeholder' }, h('span', null, t('track.empty'))),
+            trackedItems.length
+              ? h('div', { className: 'pm-quest-group-body' }, trackedItems.map(renderRequirement))
+              : h('div', { className: 'pm-placeholder' }, h('span', null, t('track.empty'))),
+          )
+        }
+
+        return h('div', { className: 'pm-quest-list', 'data-quest': doc.relativePath, 'data-view': 'all' },
+          tabs,
           h('div', { className: 'pm-quest-summary' },
             h('span', { className: 'pm-quest-chip', 'data-kind': 'open' }, t('summary.open', { count: counts.open })),
             h('span', { className: 'pm-quest-chip', 'data-kind': 'awaiting' }, t('summary.awaiting', { count: counts.awaiting })),

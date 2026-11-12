@@ -216,6 +216,33 @@ try {
   const absent = await __test.readQuestList(ctx, { projectPath: workspace })
   check('quest list reports a missing file', absent.exists === false && absent.items.length === 0, JSON.stringify(missing.exists))
 
+  // 子任务全完成但大块需求没勾：读取时就补齐，避免其他 agent 读到未完成。
+  await writeFile(questFile, ['[ ] 一、登录页', '\t[√] 生成接口', '\t[√] 前端组件', ''].join('\n'), 'utf8')
+  const repaired = await __test.readQuestList(ctx, { projectPath: workspace })
+  const repairedText = await readFile(questFile, 'utf8')
+  check('quest read ticks a requirement whose subtasks are all done',
+    repairedText.startsWith('[√] 一、登录页'), JSON.stringify(repairedText))
+  check('quest read reports the repaired requirement as done', repaired.items[0].state === 'done', JSON.stringify(repaired.items[0]))
+  const stable = await __test.readQuestList(ctx, { projectPath: workspace })
+  check('quest read leaves a consistent file alone', stable.version === repaired.version, JSON.stringify([stable.version, repaired.version]))
+
+  await writeFile(questFile, ['[√] 二、收尾', '\t[√] 写文档', '\t[ ] 补测试', ''].join('\n'), 'utf8')
+  await __test.readQuestList(ctx, { projectPath: workspace })
+  const reopenedText = await readFile(questFile, 'utf8')
+  check('quest read reopens a requirement when a subtask is open again',
+    reopenedText.startsWith('[O] 二、收尾'), JSON.stringify(reopenedText))
+
+  await writeFile(questFile, ['[ ] 三、登录页', '\t[√] 生成接口', '\t[ ] 前端组件', ''].join('\n'), 'utf8')
+  const beforeLast = await __test.readQuestList(ctx, { projectPath: workspace })
+  const afterLast = await __test.setQuestState(ctx, { projectPath: workspace, line: 3, state: 'done', version: beforeLast.version })
+  const lastDoneText = await readFile(questFile, 'utf8')
+  check('quest toggle ticks the parent when its last subtask is done',
+    lastDoneText.includes('[√] 三、登录页'), JSON.stringify(lastDoneText))
+  await __test.setQuestState(ctx, { projectPath: workspace, line: 3, state: 'open', version: afterLast.version })
+  const reopenedByToggle = await readFile(questFile, 'utf8')
+  check('quest toggle reopens the parent when a subtask is reopened',
+    reopenedByToggle.includes('[O] 三、登录页'), JSON.stringify(reopenedByToggle))
+
   const headed = __test.parseQuestMarkdown([
     '# 总览',
     '',

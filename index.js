@@ -1132,13 +1132,30 @@ async function readQuestList(ctx, payload) {
     if (info.type !== 'file') return { ...base, error: 'Not a regular file' }
     const size = Number(info.size || 0)
     if (size > MAX_FILE_BYTES) return { ...base, exists: true, size, version: String(info.version), tooLarge: true }
-    const content = await fs.readText(target)
+    let content = await fs.readText(target)
+    let version = String(info.version)
+    let finalSize = size
+    // 子任务全完成但大块需求没勾时，读一次就顺手补齐，保证文件与面板一致。
+    const repaired = syncRequirementStates(content)
+    if (repaired !== content) {
+      try {
+        await fs.writeText(target, repaired, { kind: 'replaceIfVersion', version }, undefined, writePolicy(ctx, filePath))
+        const after = await fs.stat(target)
+        if (after) {
+          version = String(after.version)
+          finalSize = Number(after.size || 0)
+        }
+        content = repaired
+      } catch {
+        // 只读或并发改动时保持原样，下次读取再补。
+      }
+    }
     const parsed = parseQuestMarkdown(content)
     return {
       ...base,
       exists: true,
-      size,
-      version: String(info.version),
+      size: finalSize,
+      version,
       items: parsed.items,
       counts: parsed.counts,
     }
@@ -1193,7 +1210,7 @@ async function setQuestState(ctx, payload) {
     error.statusCode = 400
     throw error
   }
-  const next = applyQuestState(content, line, state)
+  const next = syncRequirementStates(applyQuestState(content, line, state))
   if (next !== content) {
     await fs.writeText(target, next, { kind: 'replaceIfVersion', version: expected }, undefined, writePolicy(ctx, filePath))
   }
@@ -1363,6 +1380,44 @@ function applyQuestState(content, line, state) {
   const symbol = symbolOfState(state)
   lines[index] = lines[index].replace(/\[[ xXoO√]\]/, `[${symbol}]`)
   return lines.join('\n')
+}
+
+/** 子任务全完成 = 大块需求完成；只看叶子，避免中间节点状态绕进来。 */
+function allLeavesDone(node) {
+  const children = node.children || []
+  if (!children.length) return node.state === 'done'
+  return children.every(child => allLeavesDone(child))
+}
+
+function anyLeafDone(node) {
+  const children = node.children || []
+  if (!children.length) return node.state === 'done'
+  return children.some(child => anyLeafDone(child))
+}
+
+/**
+ * 让大块需求标记跟子任务保持一致：子任务全完成补 [√]，子任务被重新打开则撤销 [√]。
+ * 标题行（# / 一、）没有标记，原样跳过。
+ */
+function syncRequirementStates(content) {
+  const lines = String(content || '').split(/\r?\n/)
+  const requirements = collectQuestItems(parseQuestMarkdown(content).items)
+    .filter(node => node.kind !== 'heading' && node.children.length)
+  let changed = false
+  for (const node of requirements) {
+    const index = node.line - 1
+    const marker = readMarker(lines[index])
+    if (!marker) continue
+    const done = allLeavesDone(node)
+    let desired
+    if (done) desired = '√'
+    else if (marker.symbol === '√') desired = anyLeafDone(node) ? 'O' : ' '
+    else continue
+    if (marker.symbol === desired) continue
+    lines[index] = lines[index].replace(/\[[ xXoO√]\]/, `[${desired}]`)
+    changed = true
+  }
+  return changed ? lines.join('\n') : content
 }
 
 function legacyRoot(projectPath, relative) {
