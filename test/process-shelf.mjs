@@ -109,6 +109,10 @@ truthy('the pin toggle sits in the header', t.PROCESS_SHELF_CSS.includes('.hm-pr
 truthy('the pin state is remembered', SOURCE.includes('heipm:proc-drawer:pin:v1'))
 truthy('pinning keeps the window through outside clicks', SOURCE.includes('if (PROC_DRAWER_PINNED) return'))
 truthy('Escape still closes a pinned window', SOURCE.includes("closeProcessDrawer(doc, 'escape')"))
+truthy('the follow button has a leading icon', SOURCE.includes('appendButtonIcon(follow, doc, FOLLOW_ICON)'))
+truthy('the pin button has a leading icon', SOURCE.includes('appendButtonIcon(pin, doc, PIN_ICON)'))
+truthy('the label is kept when the button text changes', SOURCE.includes("querySelector('.hm-proc-drawer-label')"))
+truthy('button icons are sized like the text', t.PROCESS_SHELF_CSS.includes('.hm-proc-drawer-follow svg'))
 
 truthy('rows are recognised by semantic kind', t.HOST_CONTRACT.flowRow.includes('data-chat-flow-kind'))
 truthy('thinking row is recognised without hashed class', t.HOST_CONTRACT.rowThinking === '[data-variant="think"]')

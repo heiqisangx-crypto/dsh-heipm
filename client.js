@@ -1424,6 +1424,8 @@ window.__ModuleLoader__.load({
 .hm-proc-drawer-pin{appearance:none;background:transparent;border:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 35%, transparent);border-radius:8px;color:var(--hm-dim, #a8adb8);cursor:pointer;flex:0 0 auto;font-size:12px;height:26px;line-height:1;padding:0 9px;white-space:nowrap}
 .hm-proc-drawer-pin:hover{border-color:color-mix(in srgb, var(--hm-accent, #ff9f43) 55%, transparent);color:var(--hm-accent, #ff9f43)}
 .hm-proc-drawer-pin[aria-pressed="true"]{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 22%, transparent);border-color:color-mix(in srgb, var(--hm-accent, #ff9f43) 60%, transparent);color:var(--hm-accent, #ff9f43)}
+.hm-proc-drawer-follow,.hm-proc-drawer-pin{align-items:center;display:inline-flex;gap:5px}
+.hm-proc-drawer-follow svg,.hm-proc-drawer-pin svg{display:block;fill:currentColor;height:13px;width:13px}
 .hm-proc-drawer-body{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:auto;padding:14px 16px}
 .hm-proc-drawer-body>*{flex:1 1 auto;min-height:0;max-height:none!important;overflow:visible!important}
 .hm-proc-drawer-body [class*="_body"],.hm-proc-drawer-body [class*="_bodyScroll"],.hm-proc-drawer-body [class*="_ioSection"],.hm-proc-drawer-body [class*="_code"]{max-height:none!important;overflow:visible!important}
@@ -1491,6 +1493,21 @@ window.__ModuleLoader__.load({
       shape.setAttribute('fill', 'currentColor')
       svg.appendChild(shape)
       return svg
+    }
+
+    const FOLLOW_ICON = 'M8 3.4a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2zm0 2.4a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4z'
+    const PIN_ICON = 'M8 1.4a4.6 4.6 0 0 0-4.6 4.6c0 3.4 4.6 8.6 4.6 8.6s4.6-5.2 4.6-8.6A4.6 4.6 0 0 0 8 1.4zm0 2.3a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6z'
+
+    /* 图标在文字左边；标签单独一个 span，刷新文案时不重画图标。 */
+    function appendButtonIcon(button, doc, path) {
+      const icon = svgIcon(doc, path)
+      const shape = icon.querySelector('path')
+      if (shape) shape.setAttribute('fill-rule', 'evenodd')
+      icon.setAttribute('class', 'hm-proc-drawer-icon')
+      const label = doc.createElement('span')
+      label.className = 'hm-proc-drawer-label'
+      button.appendChild(icon)
+      button.appendChild(label)
     }
 
     /* 图标直接借宿主的：行标题前方那个 svg；借不到才画一个自己的。 */
@@ -1608,10 +1625,12 @@ window.__ModuleLoader__.load({
       follow.type = 'button'
       follow.className = 'hm-proc-drawer-follow'
       follow.addEventListener('click', () => setDrawerFollow(doc, !PROC_DRAWER_FOLLOW))
+      appendButtonIcon(follow, doc, FOLLOW_ICON)
       const pin = doc.createElement('button')
       pin.type = 'button'
       pin.className = 'hm-proc-drawer-pin'
       pin.addEventListener('click', () => setDrawerPin(doc, !PROC_DRAWER_PINNED))
+      appendButtonIcon(pin, doc, PIN_ICON)
       const close = doc.createElement('button')
       close.type = 'button'
       close.className = 'hm-proc-drawer-close'
@@ -1844,11 +1863,17 @@ window.__ModuleLoader__.load({
       }
     }
 
+    function setButtonLabel(button, text) {
+      const label = button.querySelector('.hm-proc-drawer-label')
+      if (label) label.textContent = text
+      else button.textContent = text
+    }
+
     function syncPinButton(drawer) {
       const button = drawer.querySelector('.hm-proc-drawer-pin')
       if (!button) return
       button.setAttribute('aria-pressed', PROC_DRAWER_PINNED ? 'true' : 'false')
-      button.textContent = PROC_DRAWER_PINNED ? '已固定' : '固定'
+      setButtonLabel(button, PROC_DRAWER_PINNED ? '已固定' : '固定')
       button.title = PROC_DRAWER_PINNED ? '已固定：点击外面不会关闭，点此恢复' : '固定窗口：点击外面不关闭'
     }
 
@@ -1863,7 +1888,7 @@ window.__ModuleLoader__.load({
       const button = drawer.querySelector('.hm-proc-drawer-follow')
       if (!button) return
       button.setAttribute('aria-pressed', PROC_DRAWER_FOLLOW ? 'true' : 'false')
-      button.textContent = PROC_DRAWER_FOLLOW ? '跟随中' : '跟随'
+      setButtonLabel(button, PROC_DRAWER_FOLLOW ? '跟随中' : '跟随')
       button.title = PROC_DRAWER_FOLLOW ? '正在跟随当前模型步，点此关闭' : '跟随当前模型步'
     }
 
