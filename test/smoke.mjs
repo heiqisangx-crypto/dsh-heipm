@@ -564,6 +564,11 @@ for (const [name, data, section, expected, absent, storage, budget, asyncChunk] 
       for (const token of ['pm-quest-legacy', 'migrateCommand', 'legacy.note', "doc.legacyPath"]) {
         if (!QUEST_SOURCE.includes(token)) missing.push('the legacy migration hint is missing: ' + token)
       }
+      // 空清单和"清单太大"必须分开：合并判断会把空列表报成太大。
+      if (QUEST_SOURCE.includes('doc.tooLarge || !doc.items.length')) {
+        missing.push('the empty list is still reported as too large')
+      }
+      if (!QUEST_SOURCE.includes('emptyDb.title')) missing.push('the empty list state has no dedicated copy')
       // 源码契约：追踪视图必须强制列表，不能跟着布局切成卡片。
       if (!QUEST_SOURCE.includes("'data-layout': 'list' }, trackedItems.map(renderListItem)")) {
         missing.push('the tracking view does not force the list layout')

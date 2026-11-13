@@ -41,6 +41,9 @@ window.__ModuleLoader__.load({
       'error.load': 'Could not read the task list.',
       'error.staleAlert': 'The task list changed on disk; reloading.',
       'error.tooLarge': 'This task list is too large to show here.',
+      'emptyDb.title': 'The task list is empty',
+      'emptyDb.body': 'No requirement has been recorded for this project yet. Use "+ New requirement", or ask the agent to record one.',
+      'emptyDb.legacy': 'The SQLite list is empty because the old Markdown file has not been migrated yet; run the command shown above.',
       'empty.title': 'No task list yet',
       'empty.body': 'This project has no {path}. Ask for a new requirement to create it, then refresh.',
       'view.all': 'All tasks',
@@ -94,6 +97,9 @@ window.__ModuleLoader__.load({
       'error.load': '读取任务清单失败。',
       'error.staleAlert': '任务清单在磁盘上已被修改，正在重新加载。',
       'error.tooLarge': '任务清单太大，无法在这里显示。',
+      'emptyDb.title': '任务清单还是空的',
+      'emptyDb.body': '这个项目还没有记录任何需求。点「+ 新增需求」，或者让 agent 记录一条。',
+      'emptyDb.legacy': '旧版 Markdown 还没迁移，所以这里是空的；先运行上面那条迁移命令。',
       'empty.title': '还没有任务清单',
       'empty.body': '这个项目下没有 {path}。提出「新需求」后会生成，再刷新即可看到。',
       'view.all': '全部任务',
@@ -795,14 +801,20 @@ window.__ModuleLoader__.load({
           )
         }
 
-        if (!doc.exists || doc.tooLarge || !doc.items.length) {
-          const title = !doc.exists ? t('empty.title') : t('error.tooLarge')
-          const body = !doc.exists ? t('empty.body', { path: doc.relativePath }) : doc.displayPath
-          return h('div', { className: 'pm-placeholder' },
-            h('strong', null, title),
-            h('span', null, body),
-            h('button', { type: 'button', className: 'pm-btn', onClick: () => setReloadKey(key => key + 1) }, t('action.retry')),
-          )
+        const placeholder = (title, body) => h('div', { className: 'pm-placeholder' },
+          h('strong', null, title),
+          h('span', null, body),
+          h('button', { type: 'button', className: 'pm-btn', onClick: () => setReloadKey(key => key + 1) }, t('action.retry')),
+        )
+
+        // 三种情况各有各的话：没有清单 / 清单太大 / 清单还是空的。
+        if (!doc.exists) return placeholder(t('empty.title'), t('empty.body', { path: doc.relativePath }))
+        if (doc.tooLarge) return placeholder(t('error.tooLarge'), doc.displayPath)
+
+        if (!doc.items.length) {
+          // 还有旧 Markdown 没迁移时，头部横幅已经在讲迁移，这里只说明当前库是空的。
+          const body = doc.legacyPath ? t('emptyDb.legacy') : t('emptyDb.body')
+          return placeholder(t('emptyDb.title'), body)
         }
 
         const openItems = doc.items.filter(item => !isFinished(item))
