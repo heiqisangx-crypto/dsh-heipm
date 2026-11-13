@@ -1,7 +1,6 @@
 {
   "name": "dsh-heipm",
   "version": "0.22.0",
-  "private": true,
   "type": "module",
   "main": "./index.js",
   "description": "DSH 项目管理面板：按项目浏览并管理约束、技能、经验流程与任务清单，配套经验流程提示词、quest-list 技能与 Markdown 表格样式。 · DSH project manager panel for constraints, skills, procedures and quest lists.",
@@ -96,6 +95,7 @@
     "docs/HOST_CONTRACT.md"
   ],
   "scripts": {
+    "prepublishOnly": "npm test",
     "test": "node test/smoke.mjs && node test/host.mjs && node test/procedures.mjs && node test/quest-list.mjs && node test/markdown.mjs && node test/process-shelf.mjs && node test/workspace-menu.mjs && node test/workspace-open.mjs && node test/open-folder.mjs && node test/open-folder-route.mjs && node test/ui-contract.mjs && node test/stats.mjs && node test/style-settings.mjs"
   },
   "dsh": {
