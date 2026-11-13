@@ -21,6 +21,15 @@ const QUEST_TREE = {
   }],
   counts: { total: 3, done: 1, awaiting: 1, open: 1 },
 }
+const QUEST_RUNNING = {
+  items: [{
+    line: 1, kind: 'heading', level: 1, indent: 0, label: '一、执行中', state: 'open', symbol: '', parent: null,
+    children: [
+      { line: 2, kind: 'task', indent: 4, label: '正在跑的活', state: 'running', symbol: '~', parent: 1, children: [] },
+    ],
+  }],
+  counts: { total: 1, done: 0, awaiting: 0, open: 0, running: 1 },
+}
 const QUEST_ALL_DONE = {
   items: [{
     line: 1, kind: 'heading', level: 1, indent: 0, label: '一、全部完成', state: 'open', symbol: '', parent: null,
@@ -32,8 +41,9 @@ const QUEST_ALL_DONE = {
 }
 const QUEST_FIXTURES = {
   quest: payload => {
-    const allDone = String(payload.projectPath || '').endsWith('quest-done')
-    const tree = allDone ? QUEST_ALL_DONE : QUEST_TREE
+    const path = String(payload.projectPath || '')
+    const allDone = path.endsWith('quest-done')
+    const tree = path.endsWith('quest-running') ? QUEST_RUNNING : allDone ? QUEST_ALL_DONE : QUEST_TREE
     return {
       projectPath: payload.projectPath,
       relativePath: '.dsh/dsh-heipm/任务清单.md',
@@ -311,6 +321,7 @@ const questProject = {
   inventory: { skills: { roots: ['.dsh/skills'], items: [] }, procedures: { roots: [], dir: '', items: [], templates: [], missing: [] } },
 }
 const questDoneProject = { ...questProject, id: 'p6', title: 'demo-quest-done', path: 'D:/demo-quest-done', displayPath: 'D:/demo-quest-done' }
+const questRunningProject = { ...questProject, id: 'p7', title: 'demo-quest-running', path: 'D:/demo-quest-running', displayPath: 'D:/demo-quest-running' }
 const project = {
   id: 'p1',
   title: 'demo',
@@ -487,6 +498,8 @@ const cases = [
   ['project+quest+tree', { projects: [questProject], globals: [], questEnabled: true }, 'quest', '前端验证码组件', null, null, null, false],
   ['project+quest+groups', { projects: [questProject], globals: [], questEnabled: true }, 'quest', 'group.done', '二、初始化'],
   ['project+quest+empty-open', { projects: [questDoneProject], globals: [], questEnabled: true }, 'quest', 'group.done', 'group.open · 0'],
+  ['project+quest+running', { projects: [questRunningProject], globals: [], questEnabled: true }, 'quest', '正在跑的活', null, null, null, false],
+  ['project+quest+running-chip', { projects: [questRunningProject], globals: [], questEnabled: true }, 'quest', 'summary.running', 'summary.running · 0'],
   ['project+procedures+legacy-budget', { projects: [projectWithLegacy], globals: [], proceduresEnabled: true }, 'procedures',
     'procedures.legacy.title', null, null, { word: '工具-老卡', max: 3 }],
   ['project+no-header', { projects: [project], globals: [] }, 'constraints', 'group.projects', 'page.title'],
@@ -514,6 +527,14 @@ for (const [name, data, section, expected, absent, storage, budget, asyncChunk] 
     } else if (budget && (text.match(new RegExp(budget.word, 'g')) || []).length > budget.max) {
       failed += 1
       console.error(`FAIL ${name}: "${budget.word}" appears more than ${budget.max} times (leaked into the card list)`)
+    } else if (name === 'project+quest+running') {
+      const sheet = panel.styles.find(tag => tag.attrs['data-plugin-css'] === 'heipm:quest')
+      if (!sheet || !sheet.textContent.includes('pm-quest-spin') || !sheet.textContent.includes('@keyframes pm-quest-spin')) {
+        failed += 1
+        console.error('FAIL project+quest+running: the spinning icon is missing from the quest stylesheet')
+      } else {
+        console.log(`ok   ${name}`)
+      }
     } else if (name === 'project+quest+tree') {
       const sheet = panel.styles.find(tag => tag.attrs['data-plugin-css'] === 'heipm:quest')
       if (!sheet || !sheet.textContent.includes('pm-quest-box')) {

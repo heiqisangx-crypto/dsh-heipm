@@ -28,7 +28,7 @@ The design therefore stays file-first (no extra database), zero runtime dependen
 | **Constraints** | Read and edit project/global `AGENTS.md` and `AGENTS.local.md` with version checks (409 on conflict) and a path whitelist. | No |
 | **Skills** | Lists `.dsh/skills`, `skills/` and `.agents/skills` entries with names and descriptions. | No |
 | **Procedures** | Shows knowledge cards under `.dsh/dsh-heipm/procedures/` with built-in index/template/tool scaffolds; drifted templates are flagged and can be updated one by one or all at once (confirmation first). | Yes (off by default) |
-| **Quest list** | Parses `.dsh/dsh-heipm/任务清单.md` and cycles subtask states when ticked; when the last subtask is done the requirement itself is ticked too (and unticked when a subtask is reopened). | Yes (on by default) |
+| **Quest list** | Parses `.dsh/dsh-heipm/任务清单.md` and cycles subtasks through not started -> running -> awaiting -> done; a `[~]` row shows a spinning ring in the panel and adds a Running count to the summary; when the last subtask is done the requirement itself is ticked too (and unticked when a subtask is reopened). | Yes (on by default) |
 | **Task tracking** | Two views at the top of the task list: **All tasks** shows everything, **Tracking** keeps only the requirements you watch. "Track requirement" opens a searchable list; tracked cards stay expanded, and the selection lives in the browser so it survives a refresh. | Yes (on) |
 | **Per-module refresh** | Clicking a project or section reloads only that module; while the panel is visible a 3-second fingerprint check picks up external edits to constraints, skills, procedures and the quest list (a file being edited is only flagged, never overwritten). | No |
 | **Workspace context menu** | Right-click a workspace row in the built-in DSH sidebar to rename it, remove its registration, or open the project root; colours follow the [style settings](#style-settings). | No |
@@ -172,7 +172,7 @@ No runtime dependencies; tests use Node built-ins only:
 npm test
 ```
 
-Tests cover the host data layer (collect / save / delete / quest list / per-module refresh and file fingerprints / theme file), client rendering, markdown styling, the process shelf, style settings, the workspace context menu, the UI contract and kill switches; **12 suites, 282 assertions** today.
+Tests cover the host data layer (collect / save / delete / quest list / per-module refresh and file fingerprints / theme file), client rendering, markdown styling, the process shelf, style settings, the workspace context menu, the UI contract and kill switches; **12 suites, 294 assertions** today.
 
 ## Compatibility
 

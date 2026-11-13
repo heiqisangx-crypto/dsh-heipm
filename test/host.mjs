@@ -168,7 +168,7 @@ try {
   check('quest list keeps three top-level items', quest.items.length === 3, JSON.stringify(quest.items.map(item => item.label)))
   check('quest list nests subtasks', quest.items[0].children.length === 2, JSON.stringify(quest.items[0].children.length))
   check('quest list reports the file line', quest.items[1].line === 4, JSON.stringify(quest.items[1].line))
-  check('quest list counts every state', quest.counts.total === 6 && quest.counts.done === 2 && quest.counts.awaiting === 1 && quest.counts.open === 3,
+  check('quest list counts every state', quest.counts.total === 6 && quest.counts.done === 2 && quest.counts.awaiting === 1 && quest.counts.open === 3 && quest.counts.running === 0,
     JSON.stringify(quest.counts))
   check('quest list strips markers from labels', quest.items[0].label === '一、登录页', JSON.stringify(quest.items[0].label))
 
@@ -210,6 +210,16 @@ try {
     badStateRejected = error && error.statusCode === 400
   }
   check('quest toggle refuses an unknown state', badStateRejected)
+
+  // [~] 执行中：独立文件，不污染上面依赖行号的用例。
+  const runningFile = path.join(workspace, '.dsh/dsh-heipm/任务清单.md')
+  await writeFile(runningFile, ['# 概览', '', '[ ] 一、跑批', '\t[~] 正在跑的活', ''].join('\n'), 'utf8')
+  const runningRead = await __test.readQuestList(ctx, { projectPath: workspace })
+  check('quest list reads the running marker', runningRead.items[0].children[0].state === 'running', JSON.stringify(runningRead.items[0]))
+  check('quest list counts running tasks', runningRead.counts.running === 1, JSON.stringify(runningRead.counts))
+  const runningToggle = await __test.setQuestState(ctx, { projectPath: workspace, line: 4, state: 'done', version: runningRead.version })
+  check('quest toggle clears the running marker', (await readFile(runningFile, 'utf8')).includes('\t[√] 正在跑的活'))
+  check('quest toggle moves the task out of running', runningToggle.counts.running === 0, JSON.stringify(runningToggle.counts))
 
   const missing = await __test.readQuestList(ctx, { projectPath: workspace })
   await rm(questFile, { force: true })

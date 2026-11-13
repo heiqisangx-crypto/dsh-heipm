@@ -19,8 +19,10 @@ window.__ModuleLoader__.load({
       'group.hideDone': 'Hide finished requirements',
       'summary.reading': 'Reading the task list...',
       'state.open': 'Open',
+      'state.running': 'Running',
       'state.awaiting': 'Awaiting',
       'state.done': 'Done',
+      'summary.running': 'Running {count}',
       'action.expand': 'Show subtasks',
       'action.collapse': 'Hide subtasks',
       'action.toggle': 'Cycle: open -> awaiting -> done -> open',
@@ -52,8 +54,10 @@ window.__ModuleLoader__.load({
       'group.hideDone': '收起已完成需求',
       'summary.reading': '正在读取任务清单…',
       'state.open': '未完成',
+      'state.running': '执行中',
       'state.awaiting': '待验收',
       'state.done': '已完成',
+      'summary.running': '执行中 {count}',
       'action.expand': '展开子任务',
       'action.collapse': '收起子任务',
       'action.toggle': '点击切换：未完成 → 待验收 → 已完成 → 未完成',
@@ -133,6 +137,15 @@ window.__ModuleLoader__.load({
       .pm-quest-box:focus-visible { outline: 2px solid var(--pm-accent-ring); outline-offset: 2px; }
       .pm-quest-box[data-state="awaiting"] { border-color: var(--pm-accent); color: var(--pm-accent); background: var(--pm-accent-softer); }
       .pm-quest-box[data-state="done"] { border-color: #2ea043; background: #2ea043; color: #ffffff; }
+      .pm-quest-box[data-state="running"] { border-color: var(--pm-accent); color: var(--pm-accent); background: var(--pm-accent-softer); }
+      .pm-quest-spin {
+        display: block; width: 11px; height: 11px; border-radius: 999px; box-sizing: border-box;
+        border: 2px solid color-mix(in srgb, var(--pm-accent) 30%, transparent); border-top-color: var(--pm-accent);
+        animation: pm-quest-spin .7s linear infinite;
+      }
+      @keyframes pm-quest-spin { to { transform: rotate(360deg); } }
+      .pm-quest-chip[data-kind="running"]::before { background: var(--pm-accent); }
+      @media (prefers-reduced-motion: reduce) { .pm-quest-spin { animation-duration: 2.4s; } }
       .pm-quest-box:disabled { cursor: progress; opacity: .6; }
       .pm-quest-label {
         flex: 0 0 auto; margin-top: 2px; padding: 1px 8px; border-radius: 999px; font-size: 11px; line-height: 1.6; white-space: nowrap;
@@ -185,7 +198,7 @@ window.__ModuleLoader__.load({
       .pm-quest-track:hover { border-color: var(--pm-accent); color: var(--pm-accent-strong); }
       .pm-quest-track[data-on="true"] { border-color: var(--pm-accent); color: var(--pm-accent-strong); background: var(--pm-accent-soft); }`
 
-    const NEXT_STATE = { open: 'awaiting', awaiting: 'done', done: 'open' }
+    const NEXT_STATE = { open: 'running', running: 'awaiting', awaiting: 'done', done: 'open' }
 
     /** 把树拍平成一层，子任务在前序遍历里紧跟父节点。 */
     function flatten(nodes, out = []) {
@@ -232,6 +245,7 @@ window.__ModuleLoader__.load({
           done: Number(counts.done || 0),
           awaiting: Number(counts.awaiting || 0),
           open: Number(counts.open || 0),
+          running: Number(counts.running || 0),
         },
         pending: countPending(items),
       }
@@ -336,7 +350,7 @@ window.__ModuleLoader__.load({
         const counts = doc ? doc.counts : { total: 0, done: 0, awaiting: 0, open: 0 }
         useEffect(() => {
           if (typeof onCounts === 'function') onCounts(counts)
-        }, [counts.total, counts.done, counts.awaiting, counts.open, onCounts])
+        }, [counts.total, counts.done, counts.awaiting, counts.open, counts.running, onCounts])
 
         function toggleTrack(line) {
           const next = tracked.includes(line) ? tracked.filter(value => value !== line) : tracked.concat(line)
@@ -384,18 +398,21 @@ window.__ModuleLoader__.load({
         function renderLeaf(item) {
           const disabled = Boolean(doc.keepOpen || busy[item.line])
           const label = item.state === 'done' ? '✓' : item.state === 'awaiting' ? '–' : ''
+          const spinner = item.state === 'running'
+            ? h('span', { className: 'pm-quest-spin', 'aria-hidden': true })
+            : null
           return h('div', { key: item.line, className: 'pm-quest-row leaf', 'data-state': item.state, 'data-line': item.line },
             h('button', {
               type: 'button',
               className: 'pm-quest-box',
               'data-state': item.state,
               role: 'checkbox',
-              'aria-checked': item.state === 'done' ? 'true' : item.state === 'awaiting' ? 'mixed' : 'false',
+              'aria-checked': item.state === 'done' ? 'true' : (item.state === 'awaiting' || item.state === 'running') ? 'mixed' : 'false',
               title: t('action.toggle'),
               'aria-label': item.label + ' · ' + t('state.' + item.state),
               disabled,
               onClick: () => cycle(item),
-            }, label),
+            }, spinner || label),
             h('span', { className: 'pm-quest-text', onClick: () => cycle(item) }, renderInline(item.label)),
           )
         }
@@ -613,6 +630,7 @@ window.__ModuleLoader__.load({
           tabs,
           h('div', { className: 'pm-quest-summary' },
             h('span', { className: 'pm-quest-chip', 'data-kind': 'open' }, t('summary.open', { count: counts.open })),
+            counts.running > 0 ? h('span', { className: 'pm-quest-chip', 'data-kind': 'running' }, t('summary.running', { count: counts.running })) : null,
             h('span', { className: 'pm-quest-chip', 'data-kind': 'awaiting' }, t('summary.awaiting', { count: counts.awaiting })),
             h('span', { className: 'pm-quest-chip', 'data-kind': 'done' }, t('summary.done', { count: counts.done })),
             doc.keepOpen ? h('span', null, t('summary.pending')) : null,

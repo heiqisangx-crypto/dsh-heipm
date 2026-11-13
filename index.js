@@ -1176,7 +1176,7 @@ async function setQuestState(ctx, payload) {
     error.statusCode = 400
     throw error
   }
-  if (!['open', 'awaiting', 'done'].includes(state)) {
+  if (!['open', 'running', 'awaiting', 'done'].includes(state)) {
     const error = new Error('Unknown task state')
     error.statusCode = 400
     throw error
@@ -1218,7 +1218,7 @@ async function setQuestState(ctx, payload) {
 }
 
 const TASK_HEAD = /^([^\S\r\n]*)(?:[-*+]|\d+[.)])[ \t]+/
-const MARKED = /^\[(?: |x|X|o|O|\u221a)\]\s*(.*)$/
+const MARKED = /^\[(?: |x|X|o|O|~|\u221a)\]\s*(.*)$/
 
 function readMarker(line) {
   const lead = (/^[^\S\r\n]*/.exec(line) || [''])[0]
@@ -1245,6 +1245,7 @@ function readTaskLine(line) {
 }
 
 function stateOfMarker(symbol) {
+  if (symbol === '~') return 'running'
   if (symbol === '√') return 'done'
   if (symbol === 'x' || symbol === 'X') return 'open'
   if (symbol === 'o' || symbol === 'O') return 'awaiting'
@@ -1252,6 +1253,7 @@ function stateOfMarker(symbol) {
 }
 
 function symbolOfState(state) {
+  if (state === 'running') return '~'
   if (state === 'done') return '√'
   if (state === 'awaiting') return 'O'
   return ' '
@@ -1265,8 +1267,8 @@ function sanitizeLabel(value) {
 }
 
 function countTaskListItems(items) {
-  const counts = { total: 0, done: 0, awaiting: 0, open: 0 }
-  for (const item of items) counts[item.state] += 1
+  const counts = { total: 0, done: 0, awaiting: 0, open: 0, running: 0 }
+  for (const item of items) counts[item.state] = (counts[item.state] || 0) + 1
   counts.total = items.length
   return counts
 }
@@ -1378,7 +1380,7 @@ function applyQuestState(content, line, state) {
   const marker = readMarker(lines[index])
   if (!marker) return content
   const symbol = symbolOfState(state)
-  lines[index] = lines[index].replace(/\[[ xXoO√]\]/, `[${symbol}]`)
+  lines[index] = lines[index].replace(/\[[ xXoO~√]\]/, `[${symbol}]`)
   return lines.join('\n')
 }
 
@@ -1414,7 +1416,7 @@ function syncRequirementStates(content) {
     else if (marker.symbol === '√') desired = anyLeafDone(node) ? 'O' : ' '
     else continue
     if (marker.symbol === desired) continue
-    lines[index] = lines[index].replace(/\[[ xXoO√]\]/, `[${desired}]`)
+    lines[index] = lines[index].replace(/\[[ xXoO~√]\]/, `[${desired}]`)
     changed = true
   }
   return changed ? lines.join('\n') : content
