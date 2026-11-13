@@ -1398,6 +1398,8 @@ window.__ModuleLoader__.load({
     const PROC_DRAWER_GEO_KEY = 'heipm:proc-drawer:geo:v1'
     const PROC_FOLLOW_KEY = 'heipm:proc-drawer:follow:v1'
     let PROC_DRAWER_FOLLOW = readFollowState()
+    const PROC_PIN_KEY = 'heipm:proc-drawer:pin:v1'
+    let PROC_DRAWER_PINNED = readPinState()
     const PROC_DRAWER_MIN_W = 360
     const PROC_DRAWER_MIN_H = 220
 
@@ -1419,6 +1421,9 @@ window.__ModuleLoader__.load({
 .hm-proc-drawer-follow{appearance:none;background:transparent;border:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 35%, transparent);border-radius:8px;color:var(--hm-dim, #a8adb8);cursor:pointer;flex:0 0 auto;font-size:12px;height:26px;line-height:1;padding:0 9px;white-space:nowrap}
 .hm-proc-drawer-follow:hover{border-color:color-mix(in srgb, var(--hm-accent, #ff9f43) 55%, transparent);color:var(--hm-accent, #ff9f43)}
 .hm-proc-drawer-follow[aria-pressed="true"]{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 22%, transparent);border-color:color-mix(in srgb, var(--hm-accent, #ff9f43) 60%, transparent);color:var(--hm-accent, #ff9f43)}
+.hm-proc-drawer-pin{appearance:none;background:transparent;border:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 35%, transparent);border-radius:8px;color:var(--hm-dim, #a8adb8);cursor:pointer;flex:0 0 auto;font-size:12px;height:26px;line-height:1;padding:0 9px;white-space:nowrap}
+.hm-proc-drawer-pin:hover{border-color:color-mix(in srgb, var(--hm-accent, #ff9f43) 55%, transparent);color:var(--hm-accent, #ff9f43)}
+.hm-proc-drawer-pin[aria-pressed="true"]{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 22%, transparent);border-color:color-mix(in srgb, var(--hm-accent, #ff9f43) 60%, transparent);color:var(--hm-accent, #ff9f43)}
 .hm-proc-drawer-body{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:auto;padding:14px 16px}
 .hm-proc-drawer-body>*{flex:1 1 auto;min-height:0;max-height:none!important;overflow:visible!important}
 .hm-proc-drawer-body [class*="_body"],.hm-proc-drawer-body [class*="_bodyScroll"],.hm-proc-drawer-body [class*="_ioSection"],.hm-proc-drawer-body [class*="_code"]{max-height:none!important;overflow:visible!important}
@@ -1603,6 +1608,10 @@ window.__ModuleLoader__.load({
       follow.type = 'button'
       follow.className = 'hm-proc-drawer-follow'
       follow.addEventListener('click', () => setDrawerFollow(doc, !PROC_DRAWER_FOLLOW))
+      const pin = doc.createElement('button')
+      pin.type = 'button'
+      pin.className = 'hm-proc-drawer-pin'
+      pin.addEventListener('click', () => setDrawerPin(doc, !PROC_DRAWER_PINNED))
       const close = doc.createElement('button')
       close.type = 'button'
       close.className = 'hm-proc-drawer-close'
@@ -1612,6 +1621,7 @@ window.__ModuleLoader__.load({
       head.appendChild(title)
       head.appendChild(meta)
       head.appendChild(follow)
+      head.appendChild(pin)
       head.appendChild(close)
       const body = doc.createElement('div')
       body.className = PROC_DRAWER_BODY_CLASS
@@ -1620,6 +1630,7 @@ window.__ModuleLoader__.load({
       grip.setAttribute('aria-hidden', 'true')
       drawer.appendChild(head)
       syncFollowButton(drawer)
+      syncPinButton(drawer)
       drawer.appendChild(body)
       drawer.appendChild(grip)
       doc.body.appendChild(drawer)
@@ -1813,6 +1824,39 @@ window.__ModuleLoader__.load({
     function stepButtonById(doc, id) {
       const value = String(id || '').replace(/["\\]/g, '\\$&')
       return doc.querySelector('.' + PROC_STEP_CLASS + '[data-hm-proc-id="' + value + '"]')
+    }
+
+    /* 「固定」开关：开着时点外面不关窗；Esc 和 × 仍然能关。 */
+    function readPinState() {
+      try {
+        if (typeof localStorage === 'undefined') return false
+        return localStorage.getItem(PROC_PIN_KEY) === '1'
+      } catch (error) {
+        return false
+      }
+    }
+
+    function writePinState(on) {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(PROC_PIN_KEY, on ? '1' : '0')
+      } catch (error) {
+        /* 存不下就只在本页生效 */
+      }
+    }
+
+    function syncPinButton(drawer) {
+      const button = drawer.querySelector('.hm-proc-drawer-pin')
+      if (!button) return
+      button.setAttribute('aria-pressed', PROC_DRAWER_PINNED ? 'true' : 'false')
+      button.textContent = PROC_DRAWER_PINNED ? '已固定' : '固定'
+      button.title = PROC_DRAWER_PINNED ? '已固定：点击外面不会关闭，点此恢复' : '固定窗口：点击外面不关闭'
+    }
+
+    function setDrawerPin(doc, on) {
+      PROC_DRAWER_PINNED = !!on
+      writePinState(PROC_DRAWER_PINNED)
+      const drawer = doc.querySelector('.' + PROC_POP_CLASS)
+      if (drawer) syncPinButton(drawer)
     }
 
     function syncFollowButton(drawer) {
@@ -2237,6 +2281,7 @@ window.__ModuleLoader__.load({
       const onPointerDown = event => {
         const target = event && event.target
         if (target && target.closest && (target.closest('.' + PROC_STEP_CLASS) || target.closest('.' + PROC_POP_CLASS))) return
+        if (PROC_DRAWER_PINNED) return
         closeProcessDrawer(doc, 'outside')
       }
       const onKeyDown = event => {
@@ -2257,10 +2302,12 @@ window.__ModuleLoader__.load({
             timed: PROC_STEP_TIMES ? PROC_STEP_TIMES.size : 0,
             live: PROC_DRAWER_LIVE ? PROC_DRAWER_LIVE.fillCount : 0,
             follow: PROC_DRAWER_FOLLOW,
+            pinned: PROC_DRAWER_PINNED,
           }),
           rescan: () => run(),
           refreshDrawer: () => refreshOpenDrawer(),
           setFollow: on => { setDrawerFollow(doc, on); return PROC_DRAWER_FOLLOW },
+          setPin: on => { setDrawerPin(doc, on); return PROC_DRAWER_PINNED },
           dumpDrawer: () => {
             const body = doc.querySelector('.' + PROC_DRAWER_BODY_CLASS)
             const child = body && body.firstElementChild

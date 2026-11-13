@@ -105,6 +105,10 @@ truthy('the follow state is remembered', SOURCE.includes('heipm:proc-drawer:foll
 truthy('the window follows the step being generated', SOURCE.includes('if (PROC_DRAWER_FOLLOW) adoptFollowStep(doc)'))
 truthy('clicking another step turns following off', SOURCE.includes('setDrawerFollow(doc, false)'))
 truthy('clicking the running step keeps following', SOURCE.includes('isRunningStep(row) && row === currentStepRow(doc)'))
+truthy('the pin toggle sits in the header', t.PROCESS_SHELF_CSS.includes('.hm-proc-drawer-pin[') && SOURCE.includes("pin.className = 'hm-proc-drawer-pin'"))
+truthy('the pin state is remembered', SOURCE.includes('heipm:proc-drawer:pin:v1'))
+truthy('pinning keeps the window through outside clicks', SOURCE.includes('if (PROC_DRAWER_PINNED) return'))
+truthy('Escape still closes a pinned window', SOURCE.includes("closeProcessDrawer(doc, 'escape')"))
 
 truthy('rows are recognised by semantic kind', t.HOST_CONTRACT.flowRow.includes('data-chat-flow-kind'))
 truthy('thinking row is recognised without hashed class', t.HOST_CONTRACT.rowThinking === '[data-variant="think"]')
