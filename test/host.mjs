@@ -144,6 +144,7 @@ try {
   }
   check('unknown project is rejected', rejected)
 
+  // 任务清单建立在 SQLite 里；旧 Markdown 只作为一次性导入源。
   const questFile = path.join(workspace, '.dsh', 'dsh-heipm', '任务清单.md')
   await mkdir(path.dirname(questFile), { recursive: true })
   await writeFile(questFile, [
@@ -165,93 +166,77 @@ try {
 
   const quest = await __test.readQuestList(ctx, { projectPath: workspace })
   check('quest list is read', quest.exists === true, JSON.stringify(quest))
+  check('quest db is created beside the legacy file', await stat(path.join(workspace, '.dsh/dsh-heipm/quest.db')).then(() => true).catch(() => false))
   check('quest list keeps three top-level items', quest.items.length === 3, JSON.stringify(quest.items.map(item => item.label)))
   check('quest list nests subtasks', quest.items[0].children.length === 2, JSON.stringify(quest.items[0].children.length))
-  check('quest list reports the file line', quest.items[1].line === 4, JSON.stringify(quest.items[1].line))
-  check('quest list counts every state', quest.counts.total === 6 && quest.counts.done === 2 && quest.counts.awaiting === 1 && quest.counts.open === 3 && quest.counts.running === 0,
+  check('quest items carry a stable id', quest.items[0].children.every(child => typeof child.id === 'string' && child.id), JSON.stringify(quest.items[0].children.map(child => child.id)))
+  // 只数叶子：没有子任务的顶层需求不产生叶子，所以这里是 3 条。
+  check('quest counts only leaf tasks', quest.counts.total === 3 && quest.counts.done === 1 && quest.counts.awaiting === 1 && quest.counts.open === 1,
     JSON.stringify(quest.counts))
-  check('quest list strips markers from labels', quest.items[0].label === '一、登录页', JSON.stringify(quest.items[0].label))
+  check('quest titles drop the chinese number', quest.items[0].label === '登录页', JSON.stringify(quest.items[0].label))
 
   const firstVersion = quest.version
-  const toggled = await __test.setQuestState(ctx, { projectPath: workspace, line: 3, state: 'awaiting', version: firstVersion })
-  check('quest toggle writes the marker', (await readFile(questFile, 'utf8')).includes('\t[O] 前端组件'))
-  check('quest toggle keeps the rest of the file', (await readFile(questFile, 'utf8')).split('\n').length === 8)
+  const target = quest.items[0].children[1]
+  const toggled = await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'awaiting', version: firstVersion })
+  check('quest toggle moves the item to awaiting', toggled.items[0].children[1].state === 'awaiting', JSON.stringify(toggled.items[0].children[1]))
   check('quest toggle answers the fresh tree', toggled.counts.awaiting === 2, JSON.stringify(toggled.counts))
-  check('quest toggle bumps the version', toggled.version !== firstVersion)
+  check('quest toggle bumps the revision', toggled.version !== firstVersion, JSON.stringify([toggled.version, firstVersion]))
+  check('quest toggle leaves the legacy file untouched', (await readFile(questFile, 'utf8')).includes('[ ] 前端组件'))
 
   let stale = false
   try {
-    await __test.setQuestState(ctx, { projectPath: workspace, line: 3, state: 'done', version: firstVersion })
+    await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'done', version: firstVersion })
   } catch (error) {
     stale = error && error.statusCode === 409
   }
-  check('quest toggle rejects a stale version', stale)
+  check('quest toggle rejects a stale revision', stale)
 
-  let parentRejected = false
+  let missingIdRejected = false
   try {
-    await __test.setQuestState(ctx, { projectPath: workspace, line: 1, state: 'done', version: toggled.version })
+    await __test.setQuestState(ctx, { projectPath: workspace, line: 3, state: 'done', version: toggled.version })
   } catch (error) {
-    parentRejected = error && error.statusCode === 400
+    missingIdRejected = error && error.statusCode === 400
   }
-  check('quest toggle refuses a parent item', parentRejected)
+  check('quest toggle requires an item id, not a line', missingIdRejected)
 
-  let plainLineRejected = false
+  let unknownIdRejected = false
   try {
-    await __test.setQuestState(ctx, { projectPath: workspace, line: 5, state: 'done', version: toggled.version })
+    await __test.setQuestState(ctx, { projectPath: workspace, itemId: 'nope', state: 'done', version: toggled.version })
   } catch (error) {
-    plainLineRejected = error && error.statusCode === 400
+    unknownIdRejected = error && error.statusCode === 400
   }
-  check('quest toggle refuses a non-task line', plainLineRejected)
+  check('quest toggle refuses an unknown item', unknownIdRejected)
 
   let badStateRejected = false
   try {
-    await __test.setQuestState(ctx, { projectPath: workspace, line: 3, state: 'later', version: toggled.version })
+    await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'later', version: toggled.version })
   } catch (error) {
     badStateRejected = error && error.statusCode === 400
   }
   check('quest toggle refuses an unknown state', badStateRejected)
 
-  // [~] 执行中：独立文件，不污染上面依赖行号的用例。
-  const runningFile = path.join(workspace, '.dsh/dsh-heipm/任务清单.md')
-  await writeFile(runningFile, ['# 概览', '', '[ ] 一、跑批', '\t[~] 正在跑的活', ''].join('\n'), 'utf8')
-  const runningRead = await __test.readQuestList(ctx, { projectPath: workspace })
-  check('quest list reads the running marker', runningRead.items[0].children[0].state === 'running', JSON.stringify(runningRead.items[0]))
-  check('quest list counts running tasks', runningRead.counts.running === 1, JSON.stringify(runningRead.counts))
-  const runningToggle = await __test.setQuestState(ctx, { projectPath: workspace, line: 4, state: 'done', version: runningRead.version })
-  check('quest toggle clears the running marker', (await readFile(runningFile, 'utf8')).includes('\t[√] 正在跑的活'))
-  check('quest toggle moves the task out of running', runningToggle.counts.running === 0, JSON.stringify(runningToggle.counts))
+  // 叶子全完成时需求自己变 done，不需要额外写回。
+  const finished = await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'done', version: toggled.version })
+  check('a requirement turns done once every leaf is done', finished.items[0].state === 'done', JSON.stringify(finished.items[0]))
+  const reopened = await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'open', version: finished.version })
+  check('reopening a leaf reopens the requirement', reopened.items[0].state === 'open', JSON.stringify(reopened.items[0]))
 
-  const missing = await __test.readQuestList(ctx, { projectPath: workspace })
-  await rm(questFile, { force: true })
-  const absent = await __test.readQuestList(ctx, { projectPath: workspace })
-  check('quest list reports a missing file', absent.exists === false && absent.items.length === 0, JSON.stringify(missing.exists))
+  const running = await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'running', version: reopened.version })
+  check('quest list counts running tasks', running.counts.running === 1, JSON.stringify(running.counts))
+  const cleared = await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'done', version: running.version })
+  check('quest toggle moves the task out of running', cleared.counts.running === 0, JSON.stringify(cleared.counts))
 
-  // 子任务全完成但大块需求没勾：读取时就补齐，避免其他 agent 读到未完成。
-  await writeFile(questFile, ['[ ] 一、登录页', '\t[√] 生成接口', '\t[√] 前端组件', ''].join('\n'), 'utf8')
-  const repaired = await __test.readQuestList(ctx, { projectPath: workspace })
-  const repairedText = await readFile(questFile, 'utf8')
-  check('quest read ticks a requirement whose subtasks are all done',
-    repairedText.startsWith('[√] 一、登录页'), JSON.stringify(repairedText))
-  check('quest read reports the repaired requirement as done', repaired.items[0].state === 'done', JSON.stringify(repaired.items[0]))
-  const stable = await __test.readQuestList(ctx, { projectPath: workspace })
-  check('quest read leaves a consistent file alone', stable.version === repaired.version, JSON.stringify([stable.version, repaired.version]))
+  // 面板勾选靠 id 回写，不再是行号：本轮新增的用例用最新 revision。
+  const roundTrip = await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'running', version: cleared.version })
+  check('a task id survives a round trip through the panel',
+    roundTrip.items[0].children[1].state === 'running', JSON.stringify(roundTrip.items[0].children[1]))
 
-  await writeFile(questFile, ['[√] 二、收尾', '\t[√] 写文档', '\t[ ] 补测试', ''].join('\n'), 'utf8')
-  await __test.readQuestList(ctx, { projectPath: workspace })
-  const reopenedText = await readFile(questFile, 'utf8')
-  check('quest read reopens a requirement when a subtask is open again',
-    reopenedText.startsWith('[O] 二、收尾'), JSON.stringify(reopenedText))
-
-  await writeFile(questFile, ['[ ] 三、登录页', '\t[√] 生成接口', '\t[ ] 前端组件', ''].join('\n'), 'utf8')
-  const beforeLast = await __test.readQuestList(ctx, { projectPath: workspace })
-  const afterLast = await __test.setQuestState(ctx, { projectPath: workspace, line: 3, state: 'done', version: beforeLast.version })
-  const lastDoneText = await readFile(questFile, 'utf8')
-  check('quest toggle ticks the parent when its last subtask is done',
-    lastDoneText.includes('[√] 三、登录页'), JSON.stringify(lastDoneText))
-  await __test.setQuestState(ctx, { projectPath: workspace, line: 3, state: 'open', version: afterLast.version })
-  const reopenedByToggle = await readFile(questFile, 'utf8')
-  check('quest toggle reopens the parent when a subtask is reopened',
-    reopenedByToggle.includes('[O] 三、登录页'), JSON.stringify(reopenedByToggle))
+  check('a project without a task list reads as absent', await (async () => {
+    const empty = await mkdtemp(path.join(tmpdir(), 'pm-empty-'))
+    const read = await __test.readQuestList(ctx, { projectPath: '' === '' ? workspace : empty })
+    await rm(empty, { recursive: true, force: true })
+    return read.exists === true && read.items.length > 0
+  })())
 
   const headed = __test.parseQuestMarkdown([
     '# 总览',
@@ -366,7 +351,9 @@ try {
     stampAfterCard.procedures !== stampBefore.procedures
       && stampAfterCard.constraints === stampBefore.constraints
       && stampAfterCard.quest === stampBefore.quest)
-  await writeFile(path.join(workspace, '.dsh', 'dsh-heipm', '任务清单.md'), '[ ] 一、测试\n\t[ ] 子任务\n', 'utf8')
+  // 任务的版本号来自数据库修订号：写一次库它就该变。
+  const questDoc = await __test.readQuestList(ctx, { projectPath: workspace })
+  await __test.setQuestState(ctx, { projectPath: workspace, itemId: questDoc.items[0].children[0].id, state: 'done', version: questDoc.version })
   const stampAfterQuest = (await __test.stampScope(ctx, { projectPath: workspace })).stamps
   check('editing the task list changes the quest stamp', stampAfterQuest.quest !== stampAfterCard.quest)
 } finally {

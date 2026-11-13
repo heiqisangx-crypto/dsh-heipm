@@ -118,7 +118,40 @@ dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
 
    也可以直接重启 DSH，由它在启动时安装 profile 依赖。
 
-> 因为只发 GitHub，`package.json` 保留了 `"private": true`，防止误发布到 npm。
+## 任务清单迁移（0.22.0 → 0.23.0）
+
+任务清单从 Markdown 文件搬到了 SQLite：`.dsh/dsh-heipm/任务清单.md` → `.dsh/dsh-heipm/quest.db`。
+升级后旧文件**不会自动导入**，需要手动跑一次迁移。
+
+**为什么改**：旧的单文件方案里，`read` 默认只读 2000 行、`write` 不校验长度，
+一次「读全文 → 改一处 → 写全文」就会把被截断的内容覆盖回磁盘。
+改成 SQLite 后，状态是字段、写入走事务，结构上不会再有这种事故。
+
+### 迁移步骤
+
+```bash
+# 1. 导入并逐条核对（不删旧文件）
+node node_modules/dsh-heipm/scripts/migrate-quest.mjs /path/to/project
+
+# 2. 核对通过后生成快照并删除旧 md
+node node_modules/dsh-heipm/scripts/finalize-quest.mjs /path/to/project
+```
+
+第一步会打印 `mismatches=N`；**N 必须为 0** 才继续第二步。
+第二步会在删除前把完整树写到 `<插件目录>/docs/quest-import-snapshot.json`。
+
+> 宿主进程正开着数据库时，Windows 上删不掉 `quest.db`。
+> 所以迁移脚本改为「清表再写」，效果等同重建，不需要删文件。
+
+### 数据结构
+
+| 表 | 内容 |
+|---|---|
+| `requirement` | 需求：`id` / `seq` / `title` / `sort` |
+| `item` | 子任务：`id` / `requirement_id` / `parent_id` / `title` / `state` / `evidence` |
+| `meta` | `revision`，每次写入 +1，用于并发校验 |
+
+**需求没有 `state` 列**：完成与否由叶子子任务派生。没有子任务的需求读出来是 `empty`。
 
 ## 配置
 

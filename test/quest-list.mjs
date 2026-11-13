@@ -21,11 +21,11 @@ assert.equal(skill.source, 'runtime')
 assert.equal(skill.resourceBase.kind, 'directory')
 assert.ok(skill.resourceBase.path.endsWith('quest-list'))
 assert.ok(!skill.content.startsWith('---'), 'front matter must be stripped from the body')
-for (const phrase of ['# quest-list', '触发', '## 格式', '[O]', '[√]']) {
+for (const phrase of ['# quest-list', '触发', 'quest_read', 'quest_write', 'awaiting', 'done']) {
   assert.ok(skill.content.includes(phrase), `missing phrase: ${phrase}`)
 }
-assert.ok(skill.content.includes('.dsh/dsh-heipm/任务清单.md'), 'body must name the new task-list path')
-assert.ok(skill.description.includes('.dsh/dsh-heipm/任务清单.md'), 'description must name the new task-list path')
+assert.ok(skill.content.includes('.dsh/dsh-heipm/quest.db'), 'body must name the SQLite store')
+assert.ok(!skill.content.includes('任务清单.md'), 'body must not point at the retired markdown file')
 
 assert.equal(sections.length, 1)
 const section = sections[0]
@@ -35,7 +35,7 @@ assert.equal(section.interpolate, false)
 assert.ok(section.text.startsWith('# 任务清单'), section.text.slice(0, 20))
 assert.ok(section.text.includes('确定为新需求'), 'missing the new-requirement gate')
 assert.ok(section.text.includes('skill `quest-list`'), 'missing skill pointer')
-assert.ok(section.text.includes('`.dsh/dsh-heipm/任务清单.md`'), 'missing task-list location')
+assert.ok(section.text.includes('quest_read') && section.text.includes('quest_write'), 'missing the quest tools in the prompt section')
 assert.ok(section.text.includes('按需读取'), 'missing the on-demand reading rule')
 
 globalThis.__heipmQuestList = undefined

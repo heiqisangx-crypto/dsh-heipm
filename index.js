@@ -4,6 +4,11 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
+import {
+  QUEST_DB_RELATIVE, openQuestDb, readTree, setItemState, setItemEvidence,
+  addRequirement, addItem, removeNode, importRequirements, getRevision,
+} from './quest-store.js'
+import { registerQuestTools } from './quest-tools.js'
 
 const ROUTE = '/dsh-heipm/api'
 /* 主题存在用户目录而不是某个项目里：插件只有一个外观，跟着人走。 */
@@ -30,7 +35,9 @@ const PROCEDURE_ROOTS = ['procedures']
 // in templates/tools serves every project.
 const TEMPLATE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'templates')
 const PROCEDURE_DIR = '.dsh/dsh-heipm/procedures'
-const QUEST_RELATIVE = '.dsh/dsh-heipm/任务清单.md'
+const QUEST_DB = QUEST_DB_RELATIVE
+/* 旧 Markdown 只在迁移时读一次，之后不再写。 */
+const QUEST_LEGACY_RELATIVE = '.dsh/dsh-heipm/任务清单.md'
 const PROCEDURE_TEMPLATES = [
   { name: 'INDEX.template.md', dest: `${PROCEDURE_DIR}/INDEX.template.md`, role: 'index', label: '索引' },
   { name: 'card-template.md', dest: `${PROCEDURE_DIR}/card-template.md`, role: 'template', label: '卡片模板' },
@@ -53,6 +60,45 @@ export function apply(ctx) {
     path: ROUTE,
     handler: (req, res) => handle(ctx, req, res),
   }), 'dsh-heipm: HTTP route')
+  mountQuestTools(ctx)
+}
+
+/**
+ * Agent 工具只在「任务清单」子插件运行时挂上：没开子插件的人不该看到它。
+ * tools 服务必须用 ctx.inject 取子作用域，主 ctx 上没有这个服务。
+ */
+function mountQuestTools(ctx) {
+  const getDb = projectPath => {
+    const base = projectPath
+      ? knownProjectPath(ctx, projectPath)
+      : (ctx.get('workspaceRegistry')?.list?.()[0]?.path || process.cwd())
+    return questDb(ctx, base)
+  }
+  ctx.inject(['tools'], toolsCtx => {
+    let dispose = null
+    const sync = () => {
+      const flag = globalThis.__heipmQuestList
+      const wanted = Number(flag && flag.count ? flag.count : 0) > 0
+      if (wanted && !dispose) {
+        // 返回 null 说明本轮还拿不到 tools 服务，留给下一次轮询。
+        const off = registerQuestTools(toolsCtx, getDb)
+        if (typeof off === 'function') {
+          dispose = off
+          ctx.logger?.info?.('dsh-heipm: quest tools mounted')
+        }
+      } else if (!wanted && dispose) {
+        dispose(); dispose = null
+      }
+    }
+    sync()
+    // 子插件晚于主插件 apply 时，这里补一次。
+    const timer = setInterval(sync, 1500)
+    toolsCtx.effect(() => () => {
+      clearInterval(timer)
+      if (dispose) dispose()
+      dispose = null
+    }, 'dsh-heipm: quest tools')
+  })
 }
 
 /**
@@ -608,10 +654,10 @@ async function fileToken(fs, filePath) {
   }
 }
 
-async function questVersion(fs, filePath) {
+/** 任务清单的"版本"就是库的修订号：发一条空写的代价太高，直接读 meta。 */
+async function questVersion(ctx, projectPath) {
   try {
-    const info = await fs.stat(await fs.resolve(filePath))
-    return info && info.type === 'file' ? String(info.version) : '-'
+    return String(getRevision(questDb(ctx, projectPath)))
   } catch {
     return '-'
   }
@@ -697,7 +743,7 @@ async function stampScope(ctx, payload = {}) {
     for (const entry of markdown) procedureParts.push(`${entry.name}=${await fileToken(fs, path.join(procedureRoot, entry.name))}`)
   }
   stamps.procedures = digestOf(procedureParts)
-  stamps.quest = await questVersion(fs, questListPath(base))
+  stamps.quest = await questVersion(ctx, base)
   return { stamps }
 }
 
@@ -1101,7 +1147,89 @@ async function save(ctx, payload) {
 }
 
 function questListPath(projectPath) {
-  return path.join(path.resolve(projectPath), ...QUEST_RELATIVE.split('/'))
+  return path.join(path.resolve(projectPath), ...QUEST_DB.split('/'))
+}
+
+function questLegacyPath(projectPath) {
+  return path.join(path.resolve(projectPath), ...QUEST_LEGACY_RELATIVE.split('/'))
+}
+
+/** 每个项目的库句柄按路径缓存，避免每次请求重开。 */
+const questDbs = new Map()
+
+function questDb(ctx, projectPath) {
+  const file = questListPath(projectPath)
+  const cached = questDbs.get(file)
+  if (cached) {
+    try { cached.prepare('SELECT 1').get(); return cached } catch { questDbs.delete(file) }
+  }
+  const fs = ctx.get('fs')
+  if (!fs) throw new Error('Filesystem service is unavailable')
+  const opened = openQuestDb(file)
+  questDbs.set(file, opened)
+  return opened
+}
+
+export function closeQuestDbs() {
+  for (const db of questDbs.values()) { try { db.close() } catch {} }
+  questDbs.clear()
+}
+
+/**
+ * 旧 Markdown 一次性导入：只在库里没有任何需求时执行，导入后不删文件（由调用方决定）。
+ */
+async function importLegacyQuest(ctx, projectPath, db) {
+  const fs = ctx.get('fs')
+  if (!fs) return null
+  const legacy = questLegacyPath(projectPath)
+  try {
+    const target = await fs.resolve(legacy)
+    const info = await fs.stat(target)
+    if (!info || info.type !== 'file') return null
+    const content = await fs.readText(target)
+    const parsed = parseQuestMarkdown(content)
+    if (!parsed.items.length) return null
+    const result = importRequirements(db, toStoreRequirements(parsed.items))
+    return { ...result, legacyPath: legacy }
+  } catch {
+    return null
+  }
+}
+
+/** 面板树带 line；库要的是稳定 id。 */
+function toStoreRequirements(items) {
+  return items.map((req, index) => ({
+    id: `r${index + 1}`,
+    seq: index + 1,
+    title: String(req.label || req.title || '').replace(/^[一二三四五六七八九十百]+、\s*/, ''),
+    items: (req.children || []).map((child, order) => ({
+      id: `r${index + 1}-i${order + 1}`,
+      title: String(child.label || child.title || ''),
+      state: child.state || 'open',
+      line: child.line,
+    })),
+  }))
+}
+
+/** 把库里的树摊回面板认识的形状（大块需求 + 子任务，line 用库里的自增序号占位）。 */
+function toPanelTree(tree) {
+  const items = tree.requirements.map(req => ({
+    id: req.id,
+    seq: req.seq,
+    label: req.title,
+    title: req.title,
+    state: req.state,
+    line: req.seq,
+    children: req.items.map((child, index) => ({
+      id: child.id,
+      label: child.title,
+      title: child.title,
+      state: child.state,
+      evidence: child.evidence,
+      line: req.seq * 1000 + index,
+    })),
+  }))
+  return { items, counts: tree.counts }
 }
 
 /**
@@ -1116,103 +1244,71 @@ async function readQuestList(ctx, payload) {
     projectPath,
     path: filePath,
     displayPath: shortPath(filePath),
-    relativePath: QUEST_RELATIVE,
+    relativePath: QUEST_DB,
     exists: false,
-    tooLarge: false,
     version: null,
     size: 0,
     error: null,
     items: [],
-    counts: { total: 0, done: 0, awaiting: 0, open: 0 },
+    counts: { total: 0, done: 0, awaiting: 0, open: 0, running: 0 },
   }
   try {
-    const target = await fs.resolve(filePath)
-    const info = await fs.stat(target)
-    if (!info) return base
-    if (info.type !== 'file') return { ...base, error: 'Not a regular file' }
-    const size = Number(info.size || 0)
-    if (size > MAX_FILE_BYTES) return { ...base, exists: true, size, version: String(info.version), tooLarge: true }
-    let content = await fs.readText(target)
-    let version = String(info.version)
-    let finalSize = size
-    // 子任务全完成但大块需求没勾时，读一次就顺手补齐，保证文件与面板一致。
-    const repaired = syncRequirementStates(content)
-    if (repaired !== content) {
-      try {
-        await fs.writeText(target, repaired, { kind: 'replaceIfVersion', version }, undefined, writePolicy(ctx, filePath))
-        const after = await fs.stat(target)
-        if (after) {
-          version = String(after.version)
-          finalSize = Number(after.size || 0)
-        }
-        content = repaired
-      } catch {
-        // 只读或并发改动时保持原样，下次读取再补。
-      }
+    const db = questDb(ctx, projectPath)
+    let tree = readTree(db)
+    // 首次使用：库里还没有任何需求时，可把旧 Markdown 导进来。
+    if (!tree.requirements.length) {
+      const imported = await importLegacyQuest(ctx, projectPath, db)
+      if (imported) tree = readTree(db)
     }
-    const parsed = parseQuestMarkdown(content)
+    let size = 0
+    try {
+      const target = await fs.resolve(filePath)
+      const info = await fs.stat(target)
+      if (info && info.type === 'file') size = Number(info.size || 0)
+    } catch {}
+    const panel = toPanelTree(tree)
     return {
       ...base,
       exists: true,
-      size: finalSize,
-      version,
-      items: parsed.items,
-      counts: parsed.counts,
+      size,
+      version: String(tree.revision),
+      items: panel.items,
+      counts: panel.counts,
     }
   } catch (error) {
-    const missing = /ENOENT|NOT_FOUND|no such file/i.test(messageOf(error))
-    return missing ? base : { ...base, error: messageOf(error) }
+    return { ...base, error: messageOf(error) }
   }
 }
 
 /** 写完读回：让页面立刻拿到新版本号与重算后的状态。 */
 async function setQuestState(ctx, payload) {
-  const fs = ctx.get('fs')
-  if (!fs) throw new Error('Filesystem service is unavailable')
-  const line = Number(payload.line)
   const state = String(payload.state || '')
-  if (!Number.isInteger(line) || line < 1) {
-    const error = new Error('Missing task line')
-    error.statusCode = 400
-    throw error
-  }
-  if (!['open', 'running', 'awaiting', 'done'].includes(state)) {
+  const itemId = typeof payload.itemId === 'string' ? payload.itemId.trim() : ''
+  const stateList = ['open', 'running', 'awaiting', 'done']
+  if (!stateList.includes(state)) {
     const error = new Error('Unknown task state')
     error.statusCode = 400
     throw error
   }
-  const projectPath = knownProjectPath(ctx, payload.projectPath)
-  const filePath = questListPath(projectPath)
-  const target = await fs.resolve(filePath)
-  const info = await fs.stat(target)
-  if (!info || info.type !== 'file') {
-    const error = new Error('任务清单.md does not exist in this project')
+  if (!itemId) {
+    const error = new Error('Missing task id')
     error.statusCode = 400
     throw error
   }
-  const expected = typeof payload.version === 'string' && payload.version ? payload.version : null
-  if (!expected || String(info.version) !== expected) {
-    const error = new Error('The task list changed on disk since it was loaded')
+  const projectPath = knownProjectPath(ctx, payload.projectPath)
+  const db = questDb(ctx, projectPath)
+  const expected = typeof payload.version === 'string' && payload.version !== '' ? Number(payload.version) : NaN
+  if (Number.isFinite(expected) && getRevision(db) !== expected) {
+    const error = new Error('The task list changed since it was loaded')
     error.statusCode = 409
     error.code = 'stale'
     throw error
   }
-  const content = await fs.readText(target)
-  const currentLine = content.split(/\r?\n/)[line - 1] || ''
-  const marker = readMarker(currentLine)
-  if (!marker) {
-    const error = new Error('That line is not a task item')
+  try {
+    setItemState(db, itemId, state)
+  } catch (error) {
     error.statusCode = 400
     throw error
-  }
-  if (isParentItem(parseQuestMarkdown(content).items, line)) {
-    const error = new Error('A task with subtasks cannot be toggled here')
-    error.statusCode = 400
-    throw error
-  }
-  const next = syncRequirementStates(applyQuestState(content, line, state))
-  if (next !== content) {
-    await fs.writeText(target, next, { kind: 'replaceIfVersion', version: expected }, undefined, writePolicy(ctx, filePath))
   }
   return readQuestList(ctx, payload)
 }

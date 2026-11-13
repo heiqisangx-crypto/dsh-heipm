@@ -367,7 +367,7 @@ window.__ModuleLoader__.load({
           const nextState = NEXT_STATE[item.state] || 'awaiting'
           setBusy(current => ({ ...current, [item.line]: true }))
           setNotice(null)
-          api({ action: 'quest-state', projectPath, line: item.line, state: nextState, version: doc.version })
+          api({ action: 'quest-state', projectPath, itemId: item.id, state: nextState, version: doc.version })
             .then(result => {
               if (!alive.current) return
               const next = normalize(result)
