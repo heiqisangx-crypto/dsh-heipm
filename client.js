@@ -1396,6 +1396,8 @@ window.__ModuleLoader__.load({
     let PROC_DRAWER_LIVE = null
     const PROC_DRAWER_FOLLOW_PX = 48
     const PROC_DRAWER_GEO_KEY = 'heipm:proc-drawer:geo:v1'
+    const PROC_FOLLOW_KEY = 'heipm:proc-drawer:follow:v1'
+    let PROC_DRAWER_FOLLOW = readFollowState()
     const PROC_DRAWER_MIN_W = 360
     const PROC_DRAWER_MIN_H = 220
 
@@ -1414,6 +1416,9 @@ window.__ModuleLoader__.load({
 .hm-proc-drawer-meta{color:var(--hm-dim, #a8adb8);font-size:12px;margin-left:auto;white-space:nowrap}
 .hm-proc-drawer-close{appearance:none;background:transparent;border:0;border-radius:8px;color:var(--hm-dim, #a8adb8);cursor:pointer;flex:0 0 auto;font-size:18px;height:28px;line-height:1;padding:0;width:28px}
 .hm-proc-drawer-close:hover{background:color-mix(in srgb, var(--hm-line, #94a3b8) 14%, transparent);color:var(--hm-ink, #eceef2)}
+.hm-proc-drawer-follow{appearance:none;background:transparent;border:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 35%, transparent);border-radius:8px;color:var(--hm-dim, #a8adb8);cursor:pointer;flex:0 0 auto;font-size:12px;height:26px;line-height:1;padding:0 9px;white-space:nowrap}
+.hm-proc-drawer-follow:hover{border-color:color-mix(in srgb, var(--hm-accent, #ff9f43) 55%, transparent);color:var(--hm-accent, #ff9f43)}
+.hm-proc-drawer-follow[aria-pressed="true"]{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 22%, transparent);border-color:color-mix(in srgb, var(--hm-accent, #ff9f43) 60%, transparent);color:var(--hm-accent, #ff9f43)}
 .hm-proc-drawer-body{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:auto;padding:14px 16px}
 .hm-proc-drawer-body>*{flex:1 1 auto;min-height:0;max-height:none!important;overflow:visible!important}
 .hm-proc-drawer-body [class*="_body"],.hm-proc-drawer-body [class*="_bodyScroll"],.hm-proc-drawer-body [class*="_ioSection"],.hm-proc-drawer-body [class*="_code"]{max-height:none!important;overflow:visible!important}
@@ -1594,6 +1599,10 @@ window.__ModuleLoader__.load({
       title.className = PROC_DRAWER_TITLE_CLASS
       const meta = doc.createElement('span')
       meta.className = PROC_DRAWER_META_CLASS
+      const follow = doc.createElement('button')
+      follow.type = 'button'
+      follow.className = 'hm-proc-drawer-follow'
+      follow.addEventListener('click', () => setDrawerFollow(doc, !PROC_DRAWER_FOLLOW))
       const close = doc.createElement('button')
       close.type = 'button'
       close.className = 'hm-proc-drawer-close'
@@ -1602,6 +1611,7 @@ window.__ModuleLoader__.load({
       close.addEventListener('click', () => closeProcessDrawer(doc, 'close-button'))
       head.appendChild(title)
       head.appendChild(meta)
+      head.appendChild(follow)
       head.appendChild(close)
       const body = doc.createElement('div')
       body.className = PROC_DRAWER_BODY_CLASS
@@ -1609,6 +1619,7 @@ window.__ModuleLoader__.load({
       grip.className = 'hm-proc-drawer-grip'
       grip.setAttribute('aria-hidden', 'true')
       drawer.appendChild(head)
+      syncFollowButton(drawer)
       drawer.appendChild(body)
       drawer.appendChild(grip)
       doc.body.appendChild(drawer)
@@ -1752,6 +1763,94 @@ window.__ModuleLoader__.load({
       return doc.querySelector(HOST_CONTRACT.flowRow + '[data-chat-flow-key="' + value + '"]')
     }
 
+    /* 「跟随」开关：状态记进 localStorage；点谁固定谁是默认行为。 */
+    function readFollowState() {
+      try {
+        if (typeof localStorage === 'undefined') return false
+        return localStorage.getItem(PROC_FOLLOW_KEY) === '1'
+      } catch (error) {
+        return false
+      }
+    }
+
+    function writeFollowState(on) {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(PROC_FOLLOW_KEY, on ? '1' : '0')
+      } catch (error) {
+        /* 存不下就只在本页生效 */
+      }
+    }
+
+    function isRunningStep(row) {
+      if (!row || typeof row.querySelector !== 'function') return false
+      return !!(row.querySelector('[data-state="running"]') || row.querySelector('[data-streaming]'))
+    }
+
+    /* 有正在跑的步骤就跟它；都跑完了就停在最后一步。 */
+    function pickFollowIndex(roles, running) {
+      let last = -1
+      let runningIndex = -1
+      for (let index = 0; index < roles.length; index += 1) {
+        if (roles[index] !== 'process') continue
+        last = index
+        if (running[index]) runningIndex = index
+      }
+      return runningIndex >= 0 ? runningIndex : last
+    }
+
+    function currentStepRow(doc) {
+      const containers = flowContainers(doc)
+      for (let index = containers.length - 1; index >= 0; index -= 1) {
+        const rows = topFlowRows(containers[index])
+        if (!rows.length) continue
+        const roles = rows.map((row, at) => roleOfFlowRow(row, at === rows.length - 1))
+        const pick = pickFollowIndex(roles, rows.map(isRunningStep))
+        if (pick >= 0) return rows[pick]
+      }
+      return null
+    }
+
+    function stepButtonById(doc, id) {
+      const value = String(id || '').replace(/["\\]/g, '\\$&')
+      return doc.querySelector('.' + PROC_STEP_CLASS + '[data-hm-proc-id="' + value + '"]')
+    }
+
+    function syncFollowButton(drawer) {
+      const button = drawer.querySelector('.hm-proc-drawer-follow')
+      if (!button) return
+      button.setAttribute('aria-pressed', PROC_DRAWER_FOLLOW ? 'true' : 'false')
+      button.textContent = PROC_DRAWER_FOLLOW ? '跟随中' : '跟随'
+      button.title = PROC_DRAWER_FOLLOW ? '正在跟随当前模型步，点此关闭' : '跟随当前模型步'
+    }
+
+    /* 跟随中：当前步换了就把抽屉切过去，老步骤收回原样。 */
+    function adoptFollowStep(doc) {
+      const live = PROC_DRAWER_LIVE
+      if (!PROC_DRAWER_FOLLOW || !live) return false
+      const drawer = doc.querySelector('.' + PROC_POP_CLASS)
+      if (!drawer || drawer.hidden) return false
+      const row = currentStepRow(doc)
+      if (!row || row === live.row) return false
+      const id = String(row.getAttribute('data-chat-flow-key') || '')
+      for (const other of doc.querySelectorAll('.' + PROC_STEP_CLASS + '[aria-expanded="true"]')) {
+        other.setAttribute('aria-expanded', 'false')
+      }
+      const button = stepButtonById(doc, id)
+      if (button) button.setAttribute('aria-expanded', 'true')
+      drawer.setAttribute('data-hm-proc-owner', id)
+      fillProcessDrawer(drawer, row, doc)
+      startDrawerLive(doc, drawer, row, id)
+      return true
+    }
+
+    function setDrawerFollow(doc, on) {
+      PROC_DRAWER_FOLLOW = !!on
+      writeFollowState(PROC_DRAWER_FOLLOW)
+      const drawer = doc.querySelector('.' + PROC_POP_CLASS)
+      if (drawer) syncFollowButton(drawer)
+      if (PROC_DRAWER_FOLLOW) adoptFollowStep(doc)
+    }
+
     function stopDrawerLive(collapse) {
       const live = PROC_DRAWER_LIVE
       PROC_DRAWER_LIVE = null
@@ -1787,6 +1886,7 @@ window.__ModuleLoader__.load({
     function refreshOpenDrawer() {
       const live = PROC_DRAWER_LIVE
       if (!live) return
+      if (PROC_DRAWER_FOLLOW && adoptFollowStep(live.doc)) return
       const doc = live.doc
       const drawer = doc.querySelector('.' + PROC_POP_CLASS)
       if (!drawer || drawer.hidden) {
@@ -1878,6 +1978,10 @@ window.__ModuleLoader__.load({
       if (!drawer.hidden && drawer.getAttribute('data-hm-proc-owner') === id) {
         closeProcessDrawer(doc, 'toggle-same')
         return
+      }
+      /* 跟随中点开了别的步：只有点的正好是正在跑的当前步才继续跟随。 */
+      if (PROC_DRAWER_FOLLOW && !(isRunningStep(row) && row === currentStepRow(doc))) {
+        setDrawerFollow(doc, false)
       }
       for (const other of doc.querySelectorAll('.' + PROC_STEP_CLASS + '[aria-expanded="true"]')) {
         other.setAttribute('aria-expanded', 'false')
@@ -2091,7 +2195,10 @@ window.__ModuleLoader__.load({
         scheduled = false
         if (stopped) return
         decorateProcessShelves(doc)
-        if (PROC_DRAWER_LIVE) scheduleDrawerRefresh()
+        if (PROC_DRAWER_LIVE) {
+          if (PROC_DRAWER_FOLLOW) adoptFollowStep(doc)
+          scheduleDrawerRefresh()
+        }
       }
       const schedule = () => {
         if (scheduled || stopped) return
@@ -2149,9 +2256,11 @@ window.__ModuleLoader__.load({
             hidden: doc.querySelectorAll('.' + PROC_ROW_CLASS).length,
             timed: PROC_STEP_TIMES ? PROC_STEP_TIMES.size : 0,
             live: PROC_DRAWER_LIVE ? PROC_DRAWER_LIVE.fillCount : 0,
+            follow: PROC_DRAWER_FOLLOW,
           }),
           rescan: () => run(),
           refreshDrawer: () => refreshOpenDrawer(),
+          setFollow: on => { setDrawerFollow(doc, on); return PROC_DRAWER_FOLLOW },
           dumpDrawer: () => {
             const body = doc.querySelector('.' + PROC_DRAWER_BODY_CLASS)
             const child = body && body.firstElementChild
@@ -3914,6 +4023,7 @@ window.__ModuleLoader__.load({
         uiFeatureDisabled,
         classifyFlowRow,
         planProcessGroups,
+        pickFollowIndex,
         createProcessShelf,
         PROCESS_SHELF_CSS,
         workspaceKeyId,

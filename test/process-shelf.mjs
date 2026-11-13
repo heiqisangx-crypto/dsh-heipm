@@ -81,6 +81,12 @@ equal('process rows after prose group again', t.planProcessGroups(['prose', 'pro
 equal('no process rows means no group', t.planProcessGroups(['prose', 'prose']), [])
 equal('empty input is safe', t.planProcessGroups([]), [])
 
+equal('follow prefers a running step over a later finished one', t.pickFollowIndex(['process', 'prose', 'process'], [true, false, false]), 0)
+equal('follow stays on the last step when everything finished', t.pickFollowIndex(['process', 'process'], [false, false]), 1)
+equal('follow ignores prose rows', t.pickFollowIndex(['prose', 'process', 'prose'], [true, false, false]), 1)
+equal('follow skips a running row that is not a step', t.pickFollowIndex(['process', 'prose'], [false, true]), 0)
+equal('follow has no target without a step', t.pickFollowIndex(['prose'], [true]), -1)
+
 truthy('hidden rows are display:none', t.PROCESS_SHELF_CSS.includes('.hm-proc-row{display:none!important}'))
 truthy('shelf is its own pill container', t.PROCESS_SHELF_CSS.includes('.hm-proc-shelf'))
 truthy('step buttons carry an expanded state', t.PROCESS_SHELF_CSS.includes('.hm-proc-step[aria-expanded="true"]'))
@@ -94,6 +100,11 @@ truthy('the header buttons do not start a drag', SOURCE.includes("event.target.c
 truthy('the drawer can be hidden', t.PROCESS_SHELF_CSS.includes('.hm-proc-drawer[hidden]{display:none}'))
 truthy('the drawer stays opaque (theme var with a solid fallback)', t.PROCESS_SHELF_CSS.includes('background:var(--hm-panel, #1b1f26)'))
 truthy('step icons are big enough to hit', t.PROCESS_SHELF_CSS.includes('.hm-proc-step{') && t.PROCESS_SHELF_CSS.includes('height:32px') && t.PROCESS_SHELF_CSS.includes('width:19px'))
+truthy('the follow toggle sits in the header', t.PROCESS_SHELF_CSS.includes('.hm-proc-drawer-follow[') && SOURCE.includes("follow.className = 'hm-proc-drawer-follow'"))
+truthy('the follow state is remembered', SOURCE.includes('heipm:proc-drawer:follow:v1'))
+truthy('the window follows the step being generated', SOURCE.includes('if (PROC_DRAWER_FOLLOW) adoptFollowStep(doc)'))
+truthy('clicking another step turns following off', SOURCE.includes('setDrawerFollow(doc, false)'))
+truthy('clicking the running step keeps following', SOURCE.includes('isRunningStep(row) && row === currentStepRow(doc)'))
 
 truthy('rows are recognised by semantic kind', t.HOST_CONTRACT.flowRow.includes('data-chat-flow-kind'))
 truthy('thinking row is recognised without hashed class', t.HOST_CONTRACT.rowThinking === '[data-variant="think"]')
