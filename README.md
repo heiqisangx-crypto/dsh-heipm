@@ -77,9 +77,15 @@ test/                    零依赖测试
 ## 安装
 
 要求：DSH `>=0.2.2-rc.1 <0.2.3-0`（见 `engines.dsh`），Node `^22.19 || >=24`。
-当前版本 **`0.22.0`**。本项目**只从 GitHub 分发，未发布 npm**（因此插件市场里搜不到，请用下面的地址安装）。
+当前版本 **`0.22.0`**。已发布到 npm（[`dsh-heipm`](https://www.npmjs.com/package/dsh-heipm)），也可以直接从 GitHub 安装。
 
-**一行安装（推荐）**：
+**一行安装（推荐，npm）**：
+
+```bash
+dsh plugin --profile desktop add dsh-heipm
+```
+
+**从 GitHub 安装**：
 
 ```bash
 dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
