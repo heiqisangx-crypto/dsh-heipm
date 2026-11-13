@@ -5,4 +5,4 @@ Thumbs.db
 .env
 .env.*
 # 迁移脚本导出的本地数据快照，不含代码
-quest-import-snapshot.json
+quest-import-*.json

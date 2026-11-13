@@ -537,9 +537,44 @@ for (const [name, data, section, expected, absent, storage, budget, asyncChunk] 
       }
     } else if (name === 'project+quest+tree') {
       const sheet = panel.styles.find(tag => tag.attrs['data-plugin-css'] === 'heipm:quest')
-      if (!sheet || !sheet.textContent.includes('pm-quest-box')) {
+      const missing = []
+      if (!sheet || !sheet.textContent.includes('pm-quest-box')) missing.push('the quest stylesheet is not installed in head')
+      // 卡片视图：网格容器 + 卡片本体 + 切换按钮都得在样式表里。
+      for (const token of ['pm-quest-gridcard', 'data-layout="grid"', 'pm-quest-layout-btn']) {
+        if (!sheet || !sheet.textContent.includes(token)) missing.push('the quest stylesheet is missing ' + token)
+      }
+      // 卡片宽度走 CSS 变量，具体像素由滑块内联给出。
+      if (!sheet || !sheet.textContent.includes('var(--pm-card-min')) missing.push('the card width variable is missing')
+      for (const token of ['CARD_MIN_WIDTH', 'CARD_MAX_WIDTH', 'clampCardWidth', 'function readCardWidth', 'function writeCardWidth', "'dsh-heipm:quest:cardwidth:'", "type: 'range'"]) {
+        if (!QUEST_SOURCE.includes(token)) missing.push('the card width slider is incomplete: ' + token)
+      }
+      // 排列方式用图标，不再用文字按钮；顶部整块要能吸顶。
+      if (!QUEST_SOURCE.includes('function layoutIcon')) missing.push('the layout switch does not use icons')
+      if (!sheet || !sheet.textContent.includes('pm-quest-slider')) missing.push('the slider styles are missing')
+      if (!sheet || !sheet.textContent.includes('position: sticky')) missing.push('the header bar is not sticky')
+      if (!QUEST_SOURCE.includes('pm-quest-headbar')) missing.push('the header bar wrapper is missing')
+      // 滑块必须在按钮组左边，否则切布局时右边的按钮会左右跳。
+      if (!(QUEST_SOURCE.indexOf('widthSlider,') > 0 && QUEST_SOURCE.indexOf('widthSlider,') < QUEST_SOURCE.indexOf("className: 'pm-quest-layout'"))) {
+        missing.push('the width slider is not placed before the layout switch')
+      }
+      if (!QUEST_SOURCE.includes("'data-hidden': layout === 'grid' ? 'false' : 'true'")) {
+        missing.push('the slider does not keep its slot in list mode')
+      }
+      // 旧 Markdown 未迁移时必须给出提示与命令，而不是静默显示空清单。
+      for (const token of ['pm-quest-legacy', 'migrateCommand', 'legacy.note', "doc.legacyPath"]) {
+        if (!QUEST_SOURCE.includes(token)) missing.push('the legacy migration hint is missing: ' + token)
+      }
+      // 源码契约：追踪视图必须强制列表，不能跟着布局切成卡片。
+      if (!QUEST_SOURCE.includes("'data-layout': 'list' }, trackedItems.map(renderListItem)")) {
+        missing.push('the tracking view does not force the list layout')
+      }
+      // 布局选择要落地到本地存储。
+      for (const token of ["'dsh-heipm:quest:layout:'", 'function readLayout', 'function writeLayout']) {
+        if (!QUEST_SOURCE.includes(token)) missing.push('the layout choice is not persisted: ' + token)
+      }
+      if (missing.length) {
         failed += 1
-        console.error('FAIL project+quest+tree: the quest stylesheet is not installed in head')
+        console.error('FAIL project+quest+tree: ' + missing.join('; '))
       } else {
         console.log(`ok   ${name}`)
       }

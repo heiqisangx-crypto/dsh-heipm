@@ -13,7 +13,9 @@ const root = path.resolve(projectPath)
 const dir = path.join(root, '.dsh', 'dsh-heipm')
 const dbFile = path.join(dir, 'quest.db')
 const legacy = path.join(dir, '\u4EFB\u52A1\u6E05\u5355.md')
-const snapshot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'quest-import-snapshot.json')
+// 每个项目一份快照，否则跑第二个项目会覆盖掉第一个的取证。
+const slug = path.basename(root).replace(/[^\w.-]+/g, '-')
+const snapshot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'quest-import-' + slug + '.json')
 
 if (!existsSync(dbFile)) {
   console.error('quest.db missing; run migrate-quest.mjs first: ' + dbFile)

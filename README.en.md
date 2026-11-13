@@ -77,7 +77,7 @@ test/                    Dependency-free tests
 ## Install
 
 Requires DSH `>=0.2.2-rc.1 <0.2.3-0` (see `engines.dsh`) and Node `^22.19 || >=24`.
-Current version: **`0.22.0`**. Published to npm ([`dsh-heipm`](https://www.npmjs.com/package/dsh-heipm)); installing from GitHub still works.
+Current version: **`1.0.0`**. npm still serves `0.22.0`; install 1.0.0 from GitHub for now (both ways are listed below).
 
 **One-line install (recommended, npm)**:
 
@@ -91,7 +91,7 @@ dsh plugin --profile desktop add dsh-heipm
 dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
 ```
 
-`github:heiqisangx-crypto/dsh-heipm` works too, or pin a tag: `github:heiqisangx-crypto/dsh-heipm#v0.22.0`.
+`github:heiqisangx-crypto/dsh-heipm` works too, or pin a tag: `github:heiqisangx-crypto/dsh-heipm#v1.0.0`.
 Restart DSH afterwards, then enable any sub-plugin you want via [Configuration](#configuration).
 
 To pin an exact release, download the tag archive from [Releases](https://github.com/heiqisangx-crypto/dsh-heipm/releases), unpack it, and use the local link method below.

@@ -77,7 +77,7 @@ test/                    零依赖测试
 ## 安装
 
 要求：DSH `>=0.2.2-rc.1 <0.2.3-0`（见 `engines.dsh`），Node `^22.19 || >=24`。
-当前版本 **`0.22.0`**。已发布到 npm（[`dsh-heipm`](https://www.npmjs.com/package/dsh-heipm)），也可以直接从 GitHub 安装。
+当前版本 **`1.0.0`**。npm 上仍是 `0.22.0`，1.0.0 请先从 GitHub 安装（见下方两种方式）。
 
 **一行安装（推荐，npm）**：
 
@@ -91,7 +91,7 @@ dsh plugin --profile desktop add dsh-heipm
 dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
 ```
 
-也可以写成 `github:heiqisangx-crypto/dsh-heipm`，或用具体 tag：`github:heiqisangx-crypto/dsh-heipm#v0.22.0`。
+也可以写成 `github:heiqisangx-crypto/dsh-heipm`，或用具体 tag：`github:heiqisangx-crypto/dsh-heipm#v1.0.0`。
 装完**重启 DSH**；需要某个子插件时按[配置](#配置)打开。
 
 想固定到某个版本的源码包，从 [Releases](https://github.com/heiqisangx-crypto/dsh-heipm/releases) 下载对应 tag 的 zip 解压，然后按下面的本地 link 方式接上。
@@ -118,7 +118,7 @@ dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
 
    也可以直接重启 DSH，由它在启动时安装 profile 依赖。
 
-## 任务清单迁移（0.22.0 → 0.23.0）
+## 任务清单迁移（0.22.0 → 1.0.0）
 
 任务清单从 Markdown 文件搬到了 SQLite：`.dsh/dsh-heipm/任务清单.md` → `.dsh/dsh-heipm/quest.db`。
 升级后旧文件**不会自动导入**，需要手动跑一次迁移。

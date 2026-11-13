@@ -126,6 +126,7 @@ export const __test = {
   createQuestNode,
   removeQuestNode,
   renameQuestNode,
+  detectLegacyQuest,
   questListPath,
   normalizeTheme,
   readTheme,

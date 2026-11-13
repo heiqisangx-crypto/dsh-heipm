@@ -291,6 +291,20 @@ try {
     return read.exists === true && read.items.length > 0
   })())
 
+  // 旧 Markdown 还没迁移：只报告路径，不导入。
+  {
+    const legacyOnly = await mkdtemp(path.join(tmpdir(), 'pm-legacy-'))
+    await mkdir(path.join(legacyOnly, '.dsh', 'dsh-heipm'), { recursive: true })
+    const legacyFile = path.join(legacyOnly, '.dsh', 'dsh-heipm', '任务清单.md')
+    await writeFile(legacyFile, '[ ] 一、旧需求\n\t[ ] 子任务\n', 'utf8')
+    const detected = await __test.detectLegacyQuest(ctx, legacyOnly)
+    check('an unmigrated project reports its legacy file', detected === legacyFile, JSON.stringify(detected))
+    await rm(legacyFile, { force: true })
+    const gone = await __test.detectLegacyQuest(ctx, legacyOnly)
+    check('a project without a legacy file reports nothing', gone === null, JSON.stringify(gone))
+    await rm(legacyOnly, { recursive: true, force: true })
+  }
+
   const headed = parseQuestMarkdown([
     '# 总览',
     '',

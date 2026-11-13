@@ -45,6 +45,13 @@ window.__ModuleLoader__.load({
       'empty.body': 'This project has no {path}. Ask for a new requirement to create it, then refresh.',
       'view.all': 'All tasks',
       'view.track': 'Tracking',
+      'layout.label': 'Arrangement',
+      'layout.list': 'List',
+      'layout.grid': 'Cards',
+      'legacy.note': 'Found an old Markdown task list that has not been migrated: {path}. Run this once:',
+      'legacy.copy': 'Click to copy the migration command',
+      'legacy.copied': 'Migration command copied.',
+      'size.label': 'Card width',
       'track.pick': 'Track requirement',
       'track.untrack': 'Stop tracking',
       'track.active': 'Tracking',
@@ -91,6 +98,13 @@ window.__ModuleLoader__.load({
       'empty.body': '这个项目下没有 {path}。提出「新需求」后会生成，再刷新即可看到。',
       'view.all': '全部任务',
       'view.track': '任务跟踪',
+      'layout.label': '排列方式',
+      'layout.list': '列表',
+      'layout.grid': '卡片',
+      'legacy.note': '检测到旧版任务清单尚未迁移：{path}。请先运行一次：',
+      'legacy.copy': '点击复制迁移命令',
+      'legacy.copied': '迁移命令已复制。',
+      'size.label': '卡片宽度',
       'track.pick': '跟踪需求',
       'track.untrack': '取消跟踪',
       'track.active': '跟踪中',
@@ -106,7 +120,7 @@ window.__ModuleLoader__.load({
       'track.none': '没有匹配的需求',
     }
 
-    const CSS = `      .pm-quest-list { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px 32px; overflow: auto; min-height: 0; }
+    const CSS = `      .pm-quest-list { display: flex; flex-direction: column; gap: 10px; padding: 0 20px 32px; overflow: auto; min-height: 0; }
       .pm-quest-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
       .pm-quest-chip {
         display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px;
@@ -132,6 +146,33 @@ window.__ModuleLoader__.load({
       .pm-quest-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
       .pm-quest-head { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
       /* 需求序号：由 requirement.seq 渲染的独立徽章，不进标题正文。 */
+      /* 排列方式切换 */
+      /* 顶部整块固定在列表顶部，不随滚轮滑走 */
+      .pm-quest-headbar { position: sticky; top: 0; z-index: 6; margin: 0 -20px; padding: 14px 20px 10px; background: var(--dsw-alias-bg-layer-1); border-bottom: 1px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 8px; }
+      .pm-quest-controls { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; }
+      .pm-quest-legacy { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, #d9a441 55%, transparent); background: color-mix(in srgb, #d9a441 12%, transparent); font-size: 12px; color: var(--dsw-alias-label-primary); }
+      .pm-quest-legacy-note { flex: 1 1 220px; min-width: 0; }
+      .pm-quest-legacy-cmd { flex: 0 1 auto; max-width: 100%; padding: 3px 8px; border-radius: 6px; background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; cursor: copy; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .pm-quest-layout { display: inline-flex; border: 1px solid var(--dsw-alias-border-l1); border-radius: 7px; overflow: hidden; }
+      .pm-quest-slider { display: inline-flex; align-items: center; gap: 6px; }
+      .pm-quest-slider[data-hidden="true"] { visibility: hidden; }
+      .pm-quest-slider input[type="range"] { width: 96px; accent-color: var(--pm-accent); cursor: pointer; }
+      .pm-quest-slider-value { font-size: 11px; color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; min-width: 38px; }
+      .pm-quest-layout-btn { padding: 3px 10px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 12px; cursor: pointer; }
+      .pm-quest-layout-btn[data-on="true"] { background: color-mix(in srgb, var(--pm-accent) 16%, transparent); color: var(--pm-accent-strong); font-weight: 600; }
+      /* 卡片视图：网格排布，不能展开，点整张卡切换追踪 */
+      .pm-quest-group-body[data-layout="grid"] { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--pm-card-min, 240px), 1fr)); gap: 10px; }
+
+      .pm-quest-gridcard { display: flex; flex-direction: column; gap: 6px; min-height: 68px; padding: 10px 12px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); text-align: left; font: inherit; color: inherit; cursor: pointer; }
+      .pm-quest-gridcard:hover { border-color: var(--pm-accent); background: var(--pm-accent-softer); }
+      .pm-quest-gridcard[data-tracked="true"] { border-color: var(--pm-accent); box-shadow: inset 3px 0 0 var(--pm-accent); }
+      .pm-quest-gridcard[data-state="done"] { opacity: .8; }
+      .pm-quest-gridcard-head { display: flex; align-items: center; gap: 8px; }
+      .pm-quest-gridcard-state { margin-left: auto; font-size: 11px; color: var(--dsw-alias-label-secondary); }
+      .pm-quest-gridcard-state[data-state="done"] { color: #2ea043; }
+      .pm-quest-gridcard-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--pm-accent); }
+      .pm-quest-gridcard-title { font-size: 13px; font-weight: 600; line-height: 1.5; color: var(--dsw-alias-label-primary); word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+      .pm-quest-gridcard-meta { font-size: 11px; color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; }
       .pm-quest-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .38); }
       .pm-quest-dialog { width: min(560px, calc(100vw - 48px)); padding: 20px 24px; border-radius: 10px; background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1); box-shadow: 0 18px 48px rgba(0, 0, 0, .35); display: flex; flex-direction: column; gap: 10px; }
       .pm-quest-dialog-title { font-size: 14px; font-weight: 700; }
@@ -144,7 +185,7 @@ window.__ModuleLoader__.load({
       .pm-quest-btn:hover { border-color: var(--pm-accent); color: var(--pm-accent-strong); }
       .pm-quest-btn.primary { background: var(--pm-accent); border-color: var(--pm-accent); color: #fff; }
       .pm-quest-btn.primary:hover { filter: brightness(1.08); color: #fff; }
-      .pm-quest-add { flex: 0 0 auto; margin-left: auto; padding: 2px 10px; border-radius: 6px; border: 1px dashed color-mix(in srgb, var(--pm-accent) 45%, transparent); background: transparent; color: var(--pm-accent-strong); font-size: 12px; cursor: pointer; }
+      .pm-quest-add { flex: 0 0 auto; margin-left: auto; white-space: nowrap; padding: 2px 10px; border-radius: 6px; border: 1px dashed color-mix(in srgb, var(--pm-accent) 45%, transparent); background: transparent; color: var(--pm-accent-strong); font-size: 12px; cursor: pointer; }
       .pm-quest-add:hover { background: color-mix(in srgb, var(--pm-accent) 10%, transparent); border-style: solid; }
       .pm-quest-mini { flex: 0 0 auto; width: 18px; height: 18px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--dsw-alias-label-secondary) 30%, transparent); background: transparent; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1; cursor: pointer; opacity: 0; }
       .pm-quest-row:hover .pm-quest-mini, .pm-quest-row:focus-within .pm-quest-mini, .pm-quest-solo .pm-quest-mini { opacity: 1; }
@@ -310,6 +351,48 @@ window.__ModuleLoader__.load({
       } catch {}
     }
 
+    /** 排列方式（列表 / 卡片）存浏览器本地，不进任务清单。 */
+    function readLayout(projectPath) {
+      try {
+        const raw = window.localStorage.getItem('dsh-heipm:quest:layout:' + projectPath)
+        return raw === 'grid' ? 'grid' : 'list'
+      } catch {
+        return 'list'
+      }
+    }
+
+    function writeLayout(projectPath, layout) {
+      try {
+        window.localStorage.setItem('dsh-heipm:quest:layout:' + projectPath, layout)
+      } catch {}
+    }
+
+    /** 卡片宽度：拖动滑块设定像素值，只影响宽度，高度始终由内容决定。 */
+    const CARD_MIN_WIDTH = 160
+    const CARD_MAX_WIDTH = 440
+    const CARD_DEFAULT_WIDTH = 240
+
+    function clampCardWidth(value) {
+      const n = Math.round(Number(value))
+      if (!Number.isFinite(n)) return CARD_DEFAULT_WIDTH
+      return Math.min(CARD_MAX_WIDTH, Math.max(CARD_MIN_WIDTH, n))
+    }
+
+    function readCardWidth(projectPath) {
+      try {
+        const raw = window.localStorage.getItem('dsh-heipm:quest:cardwidth:' + projectPath)
+        return raw === null ? CARD_DEFAULT_WIDTH : clampCardWidth(raw)
+      } catch {
+        return CARD_DEFAULT_WIDTH
+      }
+    }
+
+    function writeCardWidth(projectPath, width) {
+      try {
+        window.localStorage.setItem('dsh-heipm:quest:cardwidth:' + projectPath, String(clampCardWidth(width)))
+      } catch {}
+    }
+
     /** 大任务下未完成子任务数；没有子任务返回 null。 */
     function openInBranch(node) {
       const children = node.children || []
@@ -344,6 +427,9 @@ window.__ModuleLoader__.load({
         const [reloadKey, setReloadKey] = useState(0)
         const [showDone, setShowDone] = useState(false)
         const [view, setView] = useState('all')
+        // 排列方式：list = 一行行，grid = 小卡片。任务跟踪始终用 list。
+        const [layout, setLayout] = useState('list')
+        const [cardWidth, setCardWidth] = useState(CARD_DEFAULT_WIDTH)
         const [tracked, setTracked] = useState([])
         const [picking, setPicking] = useState(false)
         const [pickQuery, setPickQuery] = useState('')
@@ -363,6 +449,8 @@ window.__ModuleLoader__.load({
           setPicking(false)
           setPickQuery('')
           setTracked(projectPath ? readTracked(projectPath) : [])
+          setLayout(projectPath ? readLayout(projectPath) : 'list')
+          setCardWidth(projectPath ? readCardWidth(projectPath) : CARD_DEFAULT_WIDTH)
           setDoc(null)
           setPhase('loading')
           setError(null)
@@ -396,6 +484,37 @@ window.__ModuleLoader__.load({
         useEffect(() => {
           if (typeof onCounts === 'function') onCounts(counts)
         }, [counts.total, counts.done, counts.awaiting, counts.open, counts.running, onCounts])
+
+        /** 旧 Markdown 还没迁移：给出可复制的命令，绝不偷偷导入。 */
+        function migrateCommand() {
+          const target = projectPath || '<项目路径>'
+          return 'node node_modules/dsh-heipm/scripts/migrate-quest.mjs "' + target + '"'
+        }
+
+        async function copyMigrateCommand() {
+          const text = migrateCommand()
+          try {
+            if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text)
+              setNotice(t('legacy.copied'))
+              return
+            }
+          } catch {}
+          setNotice(text)
+        }
+
+        /** 切排列方式：立刻写本地，刷新页面后保持。 */
+        function changeLayout(next) {
+          setLayout(next)
+          if (projectPath) writeLayout(projectPath, next)
+        }
+
+        /** 拖滑块改卡片宽度：只改宽度，高度仍由内容决定。 */
+        function changeCardWidth(next) {
+          const width = clampCardWidth(next)
+          setCardWidth(width)
+          if (projectPath) writeCardWidth(projectPath, width)
+        }
 
         function toggleTrack(line) {
           const next = tracked.includes(line) ? tracked.filter(value => value !== line) : tracked.concat(line)
@@ -689,8 +808,43 @@ window.__ModuleLoader__.load({
         const openItems = doc.items.filter(item => !isFinished(item))
         const doneItems = doc.items.filter(item => isFinished(item))
 
-        function renderRequirement(item) {
+        /** 小卡片：只有序号、标题、状态与进度，点整张卡切换追踪，不能展开。 */
+        function renderCard(item) {
+          const isTracked = tracked.includes(item.line)
+          const done = isFinished(item)
+          const leaves = Number(item.leaves || 0)
+          const doneLeaves = Number(item.doneLeaves || 0)
+          return h('button', {
+            type: 'button',
+            key: item.line,
+            className: 'pm-quest-gridcard',
+            'data-state': done ? 'done' : 'open',
+            'data-tracked': isTracked ? 'true' : 'false',
+            'data-line': item.line,
+            title: isTracked ? t('track.untrack') : t('track.pick'),
+            'aria-pressed': isTracked ? 'true' : 'false',
+            onClick: () => toggleTrack(item.line),
+          },
+            h('div', { className: 'pm-quest-gridcard-head' },
+              item.seq ? h('span', { className: 'pm-quest-seq' }, String(item.seq)) : null,
+              h('span', { className: 'pm-quest-gridcard-state', 'data-state': done ? 'done' : 'open' }, done ? t('state.done') : t('state.open')),
+              isTracked ? h('span', { className: 'pm-quest-gridcard-dot', 'aria-hidden': true }) : null,
+            ),
+            h('div', { className: 'pm-quest-gridcard-title' }, renderInline(item.label)),
+            leaves > 1
+              ? h('div', { className: 'pm-quest-gridcard-meta' }, doneLeaves + '/' + leaves)
+              : null,
+          )
+        }
+
+        /** 一行行的渲染（任务跟踪也用这个，永远不切成卡片）。 */
+        function renderListItem(item) {
           return (item.children && item.children.length) ? renderBranch(item) : renderSolo(item)
+        }
+
+        function renderRequirement(item) {
+          if (layout === 'grid') return renderCard(item)
+          return renderListItem(item)
         }
 
         const doneHead = h('button', {
@@ -746,6 +900,65 @@ window.__ModuleLoader__.load({
           )
           : null
 
+        /** 纯图标：三条横线 = 列表，四格 = 卡片。 */
+        function layoutIcon(kind) {
+          const common = {
+            width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+            strokeWidth: 1.9, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+          }
+          if (kind === 'list') return h('svg', common, h('path', { d: 'M4 6h16M4 12h16M4 18h16' }))
+          return h('svg', common,
+            h('rect', { x: 3.5, y: 3.5, width: 7, height: 7, rx: 1.2 }),
+            h('rect', { x: 13.5, y: 3.5, width: 7, height: 7, rx: 1.2 }),
+            h('rect', { x: 3.5, y: 13.5, width: 7, height: 7, rx: 1.2 }),
+            h('rect', { x: 13.5, y: 13.5, width: 7, height: 7, rx: 1.2 }),
+          )
+        }
+
+        // 右侧控制区：图标切换 + 卡片宽度滑块，整体靠右。
+        // 滑块放左边并常驻占位：否则切列表时它消失，右边的按钮组会左右跳。
+        const widthSlider = h('div', {
+          className: 'pm-quest-slider',
+          title: t('size.label'),
+          'data-hidden': layout === 'grid' ? 'false' : 'true',
+        },
+        h('input', {
+          type: 'range',
+          min: CARD_MIN_WIDTH,
+          max: CARD_MAX_WIDTH,
+          step: 10,
+          value: cardWidth,
+          'aria-label': t('size.label'),
+          tabIndex: layout === 'grid' ? 0 : -1,
+          onChange: event => changeCardWidth(event && event.target ? event.target.value : CARD_DEFAULT_WIDTH),
+        }),
+        h('span', { className: 'pm-quest-slider-value' }, cardWidth + 'px'),
+        )
+
+        const controls = h('div', { className: 'pm-quest-controls' },
+          widthSlider,
+          h('div', { className: 'pm-quest-layout', role: 'group', 'aria-label': t('layout.label') },
+            h('button', {
+              type: 'button',
+              className: 'pm-quest-layout-btn',
+              'data-on': layout === 'list' ? 'true' : 'false',
+              'aria-pressed': layout === 'list' ? 'true' : 'false',
+              title: t('layout.list'),
+              'aria-label': t('layout.list'),
+              onClick: () => changeLayout('list'),
+            }, layoutIcon('list')),
+            h('button', {
+              type: 'button',
+              className: 'pm-quest-layout-btn',
+              'data-on': layout === 'grid' ? 'true' : 'false',
+              'aria-pressed': layout === 'grid' ? 'true' : 'false',
+              title: t('layout.grid'),
+              'aria-label': t('layout.grid'),
+              onClick: () => changeLayout('grid'),
+            }, layoutIcon('grid')),
+          ),
+        )
+
         const tabs = h('div', { className: 'pm-quest-tabs', role: 'tablist' },
           h('button', {
             type: 'button',
@@ -772,13 +985,7 @@ window.__ModuleLoader__.load({
               : null,
             h('span', { className: 'pm-quest-tab-count' }, String(trackedItems.length)),
           ),
-          h('button', {
-            type: 'button',
-            className: 'pm-quest-add',
-            title: t('action.addReq'),
-            'aria-label': t('action.addReq'),
-            onClick: () => addRequirement(),
-          }, '+ ' + t('action.addReq')),
+          view === 'all' ? controls : null,
         )
 
         // 大需求可能上百条，平铺会被撑成一墙标签：默认只留一行，点开才是可搜索的列表。
@@ -830,29 +1037,51 @@ window.__ModuleLoader__.load({
 
         if (view === 'track') {
           return h('div', { className: 'pm-quest-list', 'data-quest': doc.relativePath, 'data-view': 'track' },
-            tabs,
-            h('div', { className: 'pm-quest-summary' },
-              notice ? h('span', { className: 'pm-quest-banner', role: 'alert' }, notice) : null,
+            h('div', { className: 'pm-quest-headbar' },
+              tabs,
+              h('div', { className: 'pm-quest-summary' },
+                notice ? h('span', { className: 'pm-quest-banner', role: 'alert' }, notice) : null,
+              ),
             ),
             doc.items.filter(item => openInBranch(item) !== null).length
               ? picker
               : h('div', { className: 'pm-placeholder' }, h('span', null, t('track.empty'))),
             trackedItems.length
-              ? h('div', { className: 'pm-quest-group-body' }, trackedItems.map(renderRequirement))
+              // 任务跟踪只支持一行行显示，不跟随卡片布局。
+              ? h('div', { className: 'pm-quest-group-body', 'data-layout': 'list' }, trackedItems.map(renderListItem))
               : h('div', { className: 'pm-placeholder' }, h('span', null, t('track.empty'))),
             dialog,
           )
         }
 
         return h('div', { className: 'pm-quest-list', 'data-quest': doc.relativePath, 'data-view': 'all' },
-          tabs,
-          h('div', { className: 'pm-quest-summary' },
-            h('span', { className: 'pm-quest-chip', 'data-kind': 'open' }, t('summary.open', { count: counts.open })),
-            counts.running > 0 ? h('span', { className: 'pm-quest-chip', 'data-kind': 'running' }, t('summary.running', { count: counts.running })) : null,
-            h('span', { className: 'pm-quest-chip', 'data-kind': 'awaiting' }, t('summary.awaiting', { count: counts.awaiting })),
-            h('span', { className: 'pm-quest-chip', 'data-kind': 'done' }, t('summary.done', { count: counts.done })),
-            doc.keepOpen ? h('span', null, t('summary.pending')) : null,
-            notice ? h('span', { className: 'pm-quest-banner', role: 'alert' }, notice) : null,
+          h('div', { className: 'pm-quest-headbar' },
+            tabs,
+            h('div', { className: 'pm-quest-summary' },
+              h('span', { className: 'pm-quest-chip', 'data-kind': 'open' }, t('summary.open', { count: counts.open })),
+              counts.running > 0 ? h('span', { className: 'pm-quest-chip', 'data-kind': 'running' }, t('summary.running', { count: counts.running })) : null,
+              h('span', { className: 'pm-quest-chip', 'data-kind': 'awaiting' }, t('summary.awaiting', { count: counts.awaiting })),
+              h('span', { className: 'pm-quest-chip', 'data-kind': 'done' }, t('summary.done', { count: counts.done })),
+              doc.keepOpen ? h('span', null, t('summary.pending')) : null,
+              notice ? h('span', { className: 'pm-quest-banner', role: 'alert' }, notice) : null,
+              h('button', {
+                type: 'button',
+                className: 'pm-quest-add',
+                title: t('action.addReq'),
+                'aria-label': t('action.addReq'),
+                onClick: () => addRequirement(),
+              }, '+ ' + t('action.addReq')),
+            ),
+            doc.legacyPath
+              ? h('div', { className: 'pm-quest-legacy', role: 'status' },
+                  h('span', { className: 'pm-quest-legacy-note' }, t('legacy.note', { path: doc.legacyPath })),
+                  h('code', {
+                    className: 'pm-quest-legacy-cmd',
+                    title: t('legacy.copy'),
+                    onClick: () => { copyMigrateCommand() },
+                  }, migrateCommand()),
+                )
+              : null,
           ),
           h('div', { className: 'pm-quest-group' },
             h('div', { className: 'pm-quest-group-head', role: 'presentation' },
@@ -860,13 +1089,13 @@ window.__ModuleLoader__.load({
               h('span', { className: 'pm-quest-group-count' }, String(openItems.length)),
             ),
             openItems.length
-              ? h('div', { className: 'pm-quest-group-body' }, openItems.map(renderRequirement))
+              ? h('div', { className: 'pm-quest-group-body', 'data-layout': layout, style: { '--pm-card-min': cardWidth + 'px' } }, openItems.map(renderRequirement))
               : null,
           ),
           doneItems.length
             ? h('div', { className: 'pm-quest-group' },
                 doneHead,
-                showDone ? h('div', { className: 'pm-quest-group-body' }, doneItems.map(renderRequirement)) : null,
+                showDone ? h('div', { className: 'pm-quest-group-body', 'data-layout': layout, style: { '--pm-card-min': cardWidth + 'px' } }, doneItems.map(renderRequirement)) : null,
               )
             : null,
           dialog,
