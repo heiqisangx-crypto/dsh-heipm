@@ -100,6 +100,13 @@ truthy('the shelf has a kill switch', SOURCE.includes("uiFeatureDisabled('proces
 truthy('killing the shelf removes its containers', SOURCE.includes('for (const shelf of doc.querySelectorAll(\'[\' + PROC_SHELF_ATTR + \']\')) shelf.remove()'))
 truthy('unhiding rows is part of the teardown', SOURCE.includes("doc.querySelectorAll('.' + PROC_ROW_CLASS)"))
 
+truthy('the open drawer refills when the step keeps running', SOURCE.includes('new MutationObserver(() => scheduleDrawerRefresh())'))
+truthy('streamed text changes reach the drawer', SOURCE.includes('characterData: true'))
+truthy('the open row stays expanded as the update source', SOURCE.includes('startDrawerLive(doc, drawer, row, id)'))
+truthy('closing the drawer stops following the step', SOURCE.includes("stopDrawerLive(reason !== 'dispose')"))
+truthy('a remounted row is found again by its flow key', SOURCE.includes('processRowByKey(doc, live.key)'))
+truthy('refills keep the drawer scroll position', SOURCE.includes('body.scrollTop = atBottom ? body.scrollHeight : before'))
+
 truthy('docs list the flow row selector', DOC.includes('[data-chat-flow-key]'))
 truthy('docs list the process shelf', DOC.includes('hm-proc-shelf'))
 

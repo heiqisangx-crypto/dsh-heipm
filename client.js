@@ -1392,6 +1392,9 @@ window.__ModuleLoader__.load({
     const PROC_STEP_TIMES = typeof Map === 'function' ? new Map() : null
     /* 刚打开的抽屉不该被同一次手势里的「点外面」立刻关掉。 */
     let PROC_DRAWER_OPENED_AT = 0
+    /* 抽屉开着时还在跑的那一步：收起宿主行会卸载正文，所以保持展开并持续重克隆。 */
+    let PROC_DRAWER_LIVE = null
+    const PROC_DRAWER_FOLLOW_PX = 48
 
     const PROCESS_SHELF_CSS = `
 .hm-proc-row{display:none!important}
@@ -1636,6 +1639,105 @@ window.__ModuleLoader__.load({
       } else body.appendChild(doc.createTextNode('这一步没有可展开的正文'))
     }
 
+    function processRowByKey(doc, key) {
+      if (key === null || key === undefined) return null
+      const value = String(key).replace(/["\\]/g, '\\$&')
+      return doc.querySelector(HOST_CONTRACT.flowRow + '[data-chat-flow-key="' + value + '"]')
+    }
+
+    function stopDrawerLive(collapse) {
+      const live = PROC_DRAWER_LIVE
+      PROC_DRAWER_LIVE = null
+      if (!live) return
+      if (live.observer && typeof live.observer.disconnect === 'function') live.observer.disconnect()
+      if (live.timer) clearTimeout(live.timer)
+      if (collapse && live.row && live.row.isConnected) collapseProcessRow(live.row)
+    }
+
+    /* 只盯当前这一步的正文，别的行动了不关我们的事。 */
+    function watchLiveRow(live) {
+      if (live.observer && typeof live.observer.disconnect === 'function') live.observer.disconnect()
+      live.observer = null
+      if (typeof MutationObserver !== 'function' || !live.row) return
+      const detail = detailBodyOf(live.row)
+      const target = detail && detail !== live.row ? detail : live.row
+      live.target = target
+      live.observer = new MutationObserver(() => scheduleDrawerRefresh())
+      live.observer.observe(target, { childList: true, subtree: true, characterData: true })
+    }
+
+    function scheduleDrawerRefresh() {
+      const live = PROC_DRAWER_LIVE
+      if (!live || live.timer) return
+      live.timer = setTimeout(() => {
+        live.timer = 0
+        if (PROC_DRAWER_LIVE !== live) return
+        refreshOpenDrawer()
+      }, 120)
+    }
+
+    /* 重克隆会重置滚动：原本贴底就继续跟，否则留在原地。 */
+    function refreshOpenDrawer() {
+      const live = PROC_DRAWER_LIVE
+      if (!live) return
+      const doc = live.doc
+      const drawer = doc.querySelector('.' + PROC_POP_CLASS)
+      if (!drawer || drawer.hidden) {
+        stopDrawerLive(true)
+        return
+      }
+      if (!live.row || !live.row.isConnected) {
+        const row = processRowByKey(doc, live.key)
+        if (!row) return
+        live.row = row
+        expandProcessRow(row)
+      }
+      const detail = detailBodyOf(live.row)
+      if (detail === live.row) {
+        /* 正文还没挂上：先展开等它，短暂等待期间不动抽屉，免得闪一下占位文案。 */
+        expandProcessRow(live.row)
+        if (live.fillCount > 0 && live.waitTicks < 10) {
+          live.waitTicks += 1
+          scheduleDrawerRefresh()
+          return
+        }
+      } else live.waitTicks = 0
+      const target = detail === live.row ? live.row : detail
+      if (target !== live.target) watchLiveRow(live)
+      const body = drawer.querySelector('.' + PROC_DRAWER_BODY_CLASS)
+      if (!body) return
+      const before = body.scrollTop || 0
+      const atBottom = body.scrollHeight - before - body.clientHeight <= PROC_DRAWER_FOLLOW_PX
+      fillProcessDrawer(drawer, live.row, doc)
+      live.fillCount += 1
+      if (live.forceBottom) {
+        live.forceBottom = false
+        body.scrollTop = body.scrollHeight
+      } else {
+        body.scrollTop = atBottom ? body.scrollHeight : before
+      }
+    }
+
+    function startDrawerLive(doc, drawer, row, id) {
+      if (PROC_DRAWER_LIVE) stopDrawerLive(true)
+      const live = {
+        doc,
+        drawer,
+        row,
+        id,
+        key: row.getAttribute('data-chat-flow-key'),
+        observer: null,
+        target: null,
+        timer: 0,
+        fillCount: 0,
+        waitTicks: 0,
+        forceBottom: true,
+      }
+      PROC_DRAWER_LIVE = live
+      watchLiveRow(live)
+      refreshOpenDrawer()
+    }
+
     function closeProcessDrawer(doc, reason) {
       const drawer = doc.querySelector('.' + PROC_POP_CLASS)
       if (!drawer || drawer.hidden) return
@@ -1653,6 +1755,8 @@ window.__ModuleLoader__.load({
       if (reason !== 'dispose' && typeof console !== 'undefined') {
         console.warn('[heipm-proc] drawer closed:', reason || 'unknown')
       }
+      /* 关掉抽屉就不再跟踪这一步，顺手把它收回原样。 */
+      stopDrawerLive(reason !== 'dispose')
       drawer.hidden = true
       drawer.removeAttribute('data-hm-proc-owner')
       for (const button of doc.querySelectorAll('.' + PROC_STEP_CLASS + '[aria-expanded="true"]')) {
@@ -1676,8 +1780,11 @@ window.__ModuleLoader__.load({
       PROC_DRAWER_OPENED_AT = Date.now()
       fillProcessDrawer(drawer, row, doc)
       drawer.hidden = false
-      /* 详情是「点开才挂载」的：正文没挂上就借宿主开关展开，克隆完再收回。 */
-      if (!expandProcessRow(row)) return
+      /* 详情是「点开才挂载」的：借宿主开关把正文挂上，抽屉开着期间保持展开。 */
+      if (!expandProcessRow(row)) {
+        stopDrawerLive(true)
+        return
+      }
       const fill = attempt => {
         if (drawer.hidden || !row.isConnected) return
         const body = detailBodyOf(row)
@@ -1686,7 +1793,8 @@ window.__ModuleLoader__.load({
           return
         }
         fillProcessDrawer(drawer, row, doc)
-        collapseProcessRow(row)
+        /* 不收起：收起会卸载正文，后面就没有可跟踪的更新源（行本身是 display:none）。 */
+        startDrawerLive(doc, drawer, row, id)
       }
       later(() => fill(0))
     }
@@ -1875,6 +1983,7 @@ window.__ModuleLoader__.load({
         scheduled = false
         if (stopped) return
         decorateProcessShelves(doc)
+        if (PROC_DRAWER_LIVE) scheduleDrawerRefresh()
       }
       const schedule = () => {
         if (scheduled || stopped) return
@@ -1931,8 +2040,10 @@ window.__ModuleLoader__.load({
             steps: doc.querySelectorAll('.' + PROC_STEP_CLASS).length,
             hidden: doc.querySelectorAll('.' + PROC_ROW_CLASS).length,
             timed: PROC_STEP_TIMES ? PROC_STEP_TIMES.size : 0,
+            live: PROC_DRAWER_LIVE ? PROC_DRAWER_LIVE.fillCount : 0,
           }),
           rescan: () => run(),
+          refreshDrawer: () => refreshOpenDrawer(),
           dumpDrawer: () => {
             const body = doc.querySelector('.' + PROC_DRAWER_BODY_CLASS)
             const child = body && body.firstElementChild
