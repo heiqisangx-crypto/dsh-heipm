@@ -131,9 +131,22 @@ export function readTree(db) {
     if (!byReq.has(item.requirement_id)) byReq.set(item.requirement_id, [])
     byReq.get(item.requirement_id).push(item)
   }
+  // counts 只数叶子：任何层级的中间节点都不重复计入。
   const counts = { total: 0, open: 0, running: 0, awaiting: 0, done: 0 }
-  const tree = requirements.map(req => {
-    const children = (byReq.get(req.id) || []).map(item => {
+  const leafRows = db.prepare(`
+    SELECT i.state AS state, COUNT(*) AS count FROM item i
+    WHERE NOT EXISTS (SELECT 1 FROM item c WHERE c.parent_id = i.id)
+    GROUP BY i.state
+  `).all()
+  for (const row of leafRows) {
+    counts[row.state] = (counts[row.state] || 0) + Number(row.count)
+    counts.total += Number(row.count)
+  }
+
+  /** 按 parent_id 递归建树；每一层都带叶子进度。 */
+  const build = (requirementId, parentId) => {
+    const rows = (byReq.get(requirementId) || []).filter(entry => (entry.parent_id || null) === parentId)
+    return rows.map(item => {
       const leaves = leavesOf(db, item.id)
       const done = leaves.filter(leaf => leaf.state === 'done').length
       return {
@@ -145,22 +158,18 @@ export function readTree(db) {
         leaves: leaves.length,
         doneLeaves: done,
         nested: leaves.length > 1,
+        children: build(requirementId, item.id),
       }
     })
-    // counts 只数叶子，中间节点不重复计入。
-    for (const child of children) {
-      if (child.nested) continue
-      counts.total += 1
-      counts[child.state] = (counts[child.state] || 0) + 1
-    }
-    return {
-      id: req.id,
-      seq: req.seq,
-      title: req.title,
-      state: rollupRequirementState(db, req.id),
-      items: children,
-    }
-  })
+  }
+
+  const tree = requirements.map(req => ({
+    id: req.id,
+    seq: req.seq,
+    title: req.title,
+    state: rollupRequirementState(db, req.id),
+    items: build(req.id, null),
+  }))
   return { revision: getRevision(db), requirements: tree, counts }
 }
 
@@ -182,21 +191,31 @@ export function addRequirement(db, title) {
   })
 }
 
-export function addItem(db, requirementId, title, evidence) {
+/**
+ * 新增子任务。传 parentId 就挂在某个子任务下面，形成多层结构；
+ * id 仍按 requirement 内递增，保证全局唯一。
+ */
+export function addItem(db, requirementId, title, evidence, parentId) {
   const text = String(title || '').trim()
   if (!text) throw new Error('Item title is required')
   return inTransaction(db, () => {
     const req = db.prepare('SELECT id FROM requirement WHERE id = ?').get(requirementId)
     if (!req) throw new Error('Unknown requirement: ' + requirementId)
+    let parent = null
+    if (parentId) {
+      parent = db.prepare('SELECT * FROM item WHERE id = ?').get(parentId)
+      if (!parent) throw new Error('Unknown parent: ' + parentId)
+      if (parent.requirement_id !== requirementId) throw new Error('Parent belongs to another requirement')
+    }
     const row = db.prepare('SELECT COALESCE(MAX(sort), 0) AS sort FROM item WHERE requirement_id = ?').get(requirementId)
     const sort = Number(row.sort) + 1
     const id = `${requirementId}-i${sort}`
     const stamp = now()
-    db.prepare('INSERT INTO item(id, requirement_id, parent_id, title, state, evidence, sort, line_no, created_at, updated_at) VALUES(?, ?, NULL, ?, ?, ?, ?, NULL, ?, ?)')
-      .run(id, requirementId, text, 'open', evidence ? String(evidence) : null, sort, stamp, stamp)
+    db.prepare('INSERT INTO item(id, requirement_id, parent_id, title, state, evidence, sort, line_no, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)')
+      .run(id, requirementId, parent ? parent.id : null, text, 'open', evidence ? String(evidence) : null, sort, stamp, stamp)
     refreshRequirementState(db, requirementId)
     bumpRevision(db)
-    return { id, requirementId, title: text, state: 'open', evidence: evidence ? String(evidence) : null, sort }
+    return { id, requirementId, parentId: parent ? parent.id : null, title: text, state: 'open', evidence: evidence ? String(evidence) : null, sort }
   })
 }
 
@@ -222,6 +241,27 @@ export function setItemEvidence(db, itemId, evidence) {
       .run(evidence ? String(evidence) : null, now(), itemId)
     bumpRevision(db)
     return { id: itemId, evidence: evidence ? String(evidence) : null }
+  })
+}
+
+/** 改标题：需求与子任务都能改，先找 item 再找 requirement。 */
+export function renameNode(db, id, title) {
+  const text = String(title || '').trim()
+  if (!text) throw new Error('Title is required')
+  return inTransaction(db, () => {
+    const item = db.prepare('SELECT requirement_id FROM item WHERE id = ?').get(id)
+    if (item) {
+      db.prepare('UPDATE item SET title = ?, updated_at = ? WHERE id = ?').run(text, now(), id)
+      bumpRevision(db)
+      return { renamed: 'item', id, title: text }
+    }
+    const req = db.prepare('SELECT id FROM requirement WHERE id = ?').get(id)
+    if (req) {
+      db.prepare('UPDATE requirement SET title = ? WHERE id = ?').run(text, id)
+      bumpRevision(db)
+      return { renamed: 'requirement', id, title: text }
+    }
+    throw new Error('Unknown node: ' + id)
   })
 }
 

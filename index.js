@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process'
 import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import {
   QUEST_DB_RELATIVE, openQuestDb, readTree, setItemState, setItemEvidence,
-  addRequirement, addItem, removeNode, importRequirements, getRevision,
+  addRequirement, addItem, removeNode, renameNode, getRevision,
 } from './quest-store.js'
 import { registerQuestTools } from './quest-tools.js'
 
@@ -123,9 +123,9 @@ export const __test = {
   patchDisablesMarkdown,
   readQuestList,
   setQuestState,
-  collectQuestItems,
-  applyQuestState,
-  parseQuestMarkdown,
+  createQuestNode,
+  removeQuestNode,
+  renameQuestNode,
   questListPath,
   normalizeTheme,
   readTheme,
@@ -206,6 +206,18 @@ async function handle(ctx, req, res) {
     }
     if (payload.action === 'quest-state') {
       send(res, 200, { ok: true, ...(await setQuestState(ctx, payload)) })
+      return
+    }
+    if (payload.action === 'quest-create') {
+      send(res, 200, { ok: true, ...(await createQuestNode(ctx, payload)) })
+      return
+    }
+    if (payload.action === 'quest-remove') {
+      send(res, 200, { ok: true, ...(await removeQuestNode(ctx, payload)) })
+      return
+    }
+    if (payload.action === 'quest-rename') {
+      send(res, 200, { ok: true, ...(await renameQuestNode(ctx, payload)) })
       return
     }
     if (payload.action === 'refresh') {
@@ -1176,59 +1188,51 @@ export function closeQuestDbs() {
 }
 
 /**
- * 旧 Markdown 一次性导入：只在库里没有任何需求时执行，导入后不删文件（由调用方决定）。
+ * 旧 Markdown 不再在运行时解析：迁移交给 scripts/migrate-quest.mjs。
+ * 这里只报告"还有旧文件没迁"，让面板能提示用户，而不是静默吞掉。
  */
-async function importLegacyQuest(ctx, projectPath, db) {
+async function detectLegacyQuest(ctx, projectPath) {
   const fs = ctx.get('fs')
   if (!fs) return null
-  const legacy = questLegacyPath(projectPath)
   try {
-    const target = await fs.resolve(legacy)
+    const target = await fs.resolve(questLegacyPath(projectPath))
     const info = await fs.stat(target)
-    if (!info || info.type !== 'file') return null
-    const content = await fs.readText(target)
-    const parsed = parseQuestMarkdown(content)
-    if (!parsed.items.length) return null
-    const result = importRequirements(db, toStoreRequirements(parsed.items))
-    return { ...result, legacyPath: legacy }
+    return info && info.type === 'file' ? questLegacyPath(projectPath) : null
   } catch {
     return null
   }
 }
 
-/** 面板树带 line；库要的是稳定 id。 */
-function toStoreRequirements(items) {
-  return items.map((req, index) => ({
-    id: `r${index + 1}`,
-    seq: index + 1,
-    title: String(req.label || req.title || '').replace(/^[一二三四五六七八九十百]+、\s*/, ''),
-    items: (req.children || []).map((child, order) => ({
-      id: `r${index + 1}-i${order + 1}`,
-      title: String(child.label || child.title || ''),
-      state: child.state || 'open',
-      line: child.line,
-    })),
-  }))
-}
-
 /** 把库里的树摊回面板认识的形状（大块需求 + 子任务，line 用库里的自增序号占位）。 */
 function toPanelTree(tree) {
-  const items = tree.requirements.map(req => ({
-    id: req.id,
-    seq: req.seq,
-    label: req.title,
-    title: req.title,
-    state: req.state,
-    line: req.seq,
-    children: req.items.map((child, index) => ({
-      id: child.id,
-      label: child.title,
-      title: child.title,
-      state: child.state,
-      evidence: child.evidence,
-      line: req.seq * 1000 + index,
-    })),
-  }))
+  // line 只是面板的稳定 key，不参与任何写入；用全局计数器保证多层嵌套也唯一。
+  let cursor = 0
+  const toPanel = node => {
+    cursor += 1
+    return {
+      id: node.id,
+      label: node.title,
+      title: node.title,
+      state: node.state,
+      evidence: node.evidence,
+      leaves: node.leaves,
+      doneLeaves: node.doneLeaves,
+      line: cursor,
+      children: (node.children || []).map(toPanel),
+    }
+  }
+  const items = tree.requirements.map(req => {
+    cursor += 1
+    return {
+      id: req.id,
+      seq: req.seq,
+      label: req.title,
+      title: req.title,
+      state: req.state,
+      line: cursor,
+      children: req.items.map(toPanel),
+    }
+  })
   return { items, counts: tree.counts }
 }
 
@@ -1255,11 +1259,9 @@ async function readQuestList(ctx, payload) {
   try {
     const db = questDb(ctx, projectPath)
     let tree = readTree(db)
-    // 首次使用：库里还没有任何需求时，可把旧 Markdown 导进来。
-    if (!tree.requirements.length) {
-      const imported = await importLegacyQuest(ctx, projectPath, db)
-      if (imported) tree = readTree(db)
-    }
+    // 空库 + 还留着旧 Markdown：提示先跑迁移脚本，不在运行时偷偷解析。
+    let legacy = null
+    if (!tree.requirements.length) legacy = await detectLegacyQuest(ctx, projectPath)
     let size = 0
     try {
       const target = await fs.resolve(filePath)
@@ -1274,6 +1276,7 @@ async function readQuestList(ctx, payload) {
       version: String(tree.revision),
       items: panel.items,
       counts: panel.counts,
+      legacyPath: legacy,
     }
   } catch (error) {
     return { ...base, error: messageOf(error) }
@@ -1281,6 +1284,81 @@ async function readQuestList(ctx, payload) {
 }
 
 /** 写完读回：让页面立刻拿到新版本号与重算后的状态。 */
+/** 面板新增：kind=req 建需求，kind=item 在某需求下建子任务。 */
+async function createQuestNode(ctx, payload) {
+  const kind = String(payload.kind || '')
+  const title = String(payload.title || '').trim()
+  if (!title) {
+    const error = new Error('Missing title')
+    error.statusCode = 400
+    throw error
+  }
+  const projectPath = knownProjectPath(ctx, payload.projectPath)
+  const db = questDb(ctx, projectPath)
+  try {
+    if (kind === 'req') addRequirement(db, title)
+    else if (kind === 'item') {
+      const parentId = String(payload.parentId || '').trim()
+      if (parentId) {
+        // 挂在子任务下面：先在库里找出它属于哪个需求。
+        const parent = db.prepare('SELECT requirement_id FROM item WHERE id = ?').get(parentId)
+        if (!parent) throw new Error('Unknown parent: ' + parentId)
+        addItem(db, parent.requirement_id, title, undefined, parentId)
+      } else {
+        addItem(db, String(payload.requirementId || ''), title)
+      }
+    }
+    else {
+      const error = new Error('Unknown node kind')
+      error.statusCode = 400
+      throw error
+    }
+  } catch (error) {
+    if (!error.statusCode) error.statusCode = 400
+    throw error
+  }
+  return readQuestList(ctx, payload)
+}
+
+/** 面板改名：需求与子任务都支持。 */
+async function renameQuestNode(ctx, payload) {
+  const id = String(payload.id || '').trim()
+  const title = String(payload.title || '').trim()
+  if (!id || !title) {
+    const error = new Error('Missing node id or title')
+    error.statusCode = 400
+    throw error
+  }
+  const projectPath = knownProjectPath(ctx, payload.projectPath)
+  const db = questDb(ctx, projectPath)
+  try {
+    renameNode(db, id, title)
+  } catch (error) {
+    error.statusCode = 400
+    throw error
+  }
+  return readQuestList(ctx, payload)
+}
+
+/** 面板删除：需求连同子任务一起删，子任务只删自己。 */
+async function removeQuestNode(ctx, payload) {
+  const id = String(payload.id || '').trim()
+  if (!id) {
+    const error = new Error('Missing node id')
+    error.statusCode = 400
+    throw error
+  }
+  const projectPath = knownProjectPath(ctx, payload.projectPath)
+  const db = questDb(ctx, projectPath)
+  try {
+    removeNode(db, id)
+  } catch (error) {
+    error.statusCode = 400
+    throw error
+  }
+  return readQuestList(ctx, payload)
+}
+
 async function setQuestState(ctx, payload) {
   const state = String(payload.state || '')
   const itemId = typeof payload.itemId === 'string' ? payload.itemId.trim() : ''
@@ -1313,210 +1391,6 @@ async function setQuestState(ctx, payload) {
   return readQuestList(ctx, payload)
 }
 
-const TASK_HEAD = /^([^\S\r\n]*)(?:[-*+]|\d+[.)])[ \t]+/
-const MARKED = /^\[(?: |x|X|o|O|~|\u221a)\]\s*(.*)$/
-
-function readMarker(line) {
-  const lead = (/^[^\S\r\n]*/.exec(line) || [''])[0]
-  const rest = line.slice(lead.length)
-  const bulleted = TASK_HEAD.test(rest) ? rest.slice(TASK_HEAD.exec(rest)[0].length) : rest
-  const marker = MARKED.exec(bulleted)
-  if (!marker) return null
-  return { label: marker[1], symbol: bulleted.charAt(1) }
-}
-
-/** 任务清单是 tab 缩进的裸列表（`[ ] 标题`），兼容带 `- `/`1. ` 前缀的写法。 */
-function readTaskLine(line) {
-  const head = TASK_HEAD.exec(line)
-  const lead = (/^[^\S\r\n]*/.exec(line) || [''])[0]
-  const rest = line.slice(lead.length)
-  const marker = MARKED.exec(rest)
-  if (!marker) return null
-  const bulleted = head ? head[0].length > lead.length : false
-  return {
-    label: marker[1],
-    symbol: rest.charAt(1),
-    indent: bulleted ? lead.replace(/\t/g, '    ').length + 2 : lead.replace(/\t/g, '    ').length,
-  }
-}
-
-function stateOfMarker(symbol) {
-  if (symbol === '~') return 'running'
-  if (symbol === '√') return 'done'
-  if (symbol === 'x' || symbol === 'X') return 'open'
-  if (symbol === 'o' || symbol === 'O') return 'awaiting'
-  return 'open'
-}
-
-function symbolOfState(state) {
-  if (state === 'running') return '~'
-  if (state === 'done') return '√'
-  if (state === 'awaiting') return 'O'
-  return ' '
-}
-
-function sanitizeLabel(value) {
-  return String(value || '')
-    .replace(/[\[\]]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function countTaskListItems(items) {
-  const counts = { total: 0, done: 0, awaiting: 0, open: 0, running: 0 }
-  for (const item of items) counts[item.state] = (counts[item.state] || 0) + 1
-  counts.total = items.length
-  return counts
-}
-
-function isParentItem(items, line) {
-  const target = items.find(entry => entry.line === line)
-  return Boolean(target && target.children && target.children.length)
-}
-
-function collectQuestItems(nodes, out = []) {
-  for (const node of nodes) {
-    out.push(node)
-    if (node.children && node.children.length) collectQuestItems(node.children, out)
-  }
-  return out
-}
-
-const HEADING_MD = /^\s*(#{1,6})\s+(\S.*)$/
-const HEADING_CN = /^\s*([一二三四五六七八九十百]+)、\s*(\S.*)$/
-const NUMBERED = /^[一二三四五六七八九十百]+、/
-
-/** 标题行本身就是大块需求，带 marker 的那些行才是挂在它下面的子任务。 */
-function readHeading(line) {
-  const md = HEADING_MD.exec(line)
-  if (md) return { level: md[1].length, label: sanitizeLabel(md[2]) }
-  const cn = HEADING_CN.exec(line)
-  if (cn) return { level: 1, label: sanitizeLabel(line.trim()) }
-  return null
-}
-
-/**
- * 解析任务清单：标题行（# 或 一、）建一个大块需求节点，
- * 其下带 [ ] / [O] / [√] 的行按缩进挂成子任务；带标记的顶层行自己就是一个大块需求。
- */
-function parseQuestMarkdown(content) {
-  const lines = String(content || '').split(/\r?\n/)
-  const root = []
-  const headings = []
-  let current = null
-  let stack = []
-  for (let index = 0; index < lines.length; index += 1) {
-    const heading = readHeading(lines[index])
-    if (heading) {
-      while (headings.length && headings[headings.length - 1].level >= heading.level) headings.pop()
-      const parent = headings.length ? headings[headings.length - 1] : null
-      const node = {
-        line: index + 1,
-        kind: 'heading',
-        level: heading.level,
-        indent: 0,
-        label: heading.label,
-        state: 'open',
-        symbol: '',
-        parent: parent ? parent.line : null,
-        children: [],
-      }
-      if (parent) parent.children.push(node)
-      else root.push(node)
-      headings.push(node)
-      current = node
-      stack = []
-      continue
-    }
-    const task = readTaskLine(lines[index])
-    if (!task) continue
-    const label = sanitizeLabel(task.label)
-    if (!label) continue
-    const node = {
-      line: index + 1,
-      kind: 'task',
-      indent: task.indent,
-      label,
-      state: stateOfMarker(task.symbol),
-      symbol: task.symbol,
-      parent: null,
-      children: [],
-    }
-    while (stack.length && stack[stack.length - 1].indent >= node.indent) stack.pop()
-    const numbered = node.indent === 0 && NUMBERED.test(label)
-    const parent = numbered ? null : (stack.length ? stack[stack.length - 1] : current)
-    node.parent = parent ? parent.line : null
-    if (parent) parent.children.push(node)
-    else root.push(node)
-    if (numbered) {
-      node.kind = 'requirement'
-      current = node
-      headings.length = 0
-      stack = []
-    } else {
-      stack.push(node)
-    }
-  }
-  const items = dropEmptyHeadings(root)
-  const flat = collectQuestItems(items).filter(node => node.kind !== 'heading')
-  return { items, counts: countTaskListItems(flat) }
-}
-
-/** 没有子条目的标题只是章节名，不该占一个大块需求。 */
-function dropEmptyHeadings(nodes) {
-  return nodes
-    .map(node => (node.kind === 'heading' ? { ...node, children: dropEmptyHeadings(node.children) } : node))
-    .filter(node => node.kind !== 'heading' || node.children.length > 0)
-}
-
-function applyQuestState(content, line, state) {
-  const lines = String(content || '').split(/\r?\n/)
-  const index = line - 1
-  if (index < 0 || index >= lines.length) return content
-  const marker = readMarker(lines[index])
-  if (!marker) return content
-  const symbol = symbolOfState(state)
-  lines[index] = lines[index].replace(/\[[ xXoO~√]\]/, `[${symbol}]`)
-  return lines.join('\n')
-}
-
-/** 子任务全完成 = 大块需求完成；只看叶子，避免中间节点状态绕进来。 */
-function allLeavesDone(node) {
-  const children = node.children || []
-  if (!children.length) return node.state === 'done'
-  return children.every(child => allLeavesDone(child))
-}
-
-function anyLeafDone(node) {
-  const children = node.children || []
-  if (!children.length) return node.state === 'done'
-  return children.some(child => anyLeafDone(child))
-}
-
-/**
- * 让大块需求标记跟子任务保持一致：子任务全完成补 [√]，子任务被重新打开则撤销 [√]。
- * 标题行（# / 一、）没有标记，原样跳过。
- */
-function syncRequirementStates(content) {
-  const lines = String(content || '').split(/\r?\n/)
-  const requirements = collectQuestItems(parseQuestMarkdown(content).items)
-    .filter(node => node.kind !== 'heading' && node.children.length)
-  let changed = false
-  for (const node of requirements) {
-    const index = node.line - 1
-    const marker = readMarker(lines[index])
-    if (!marker) continue
-    const done = allLeavesDone(node)
-    let desired
-    if (done) desired = '√'
-    else if (marker.symbol === '√') desired = anyLeafDone(node) ? 'O' : ' '
-    else continue
-    if (marker.symbol === desired) continue
-    lines[index] = lines[index].replace(/\[[ xXoO~√]\]/, `[${desired}]`)
-    changed = true
-  }
-  return changed ? lines.join('\n') : content
-}
 
 function legacyRoot(projectPath, relative) {
   return path.join(projectPath, ...String(relative).split('/'))

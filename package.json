@@ -1,6 +1,6 @@
 {
   "name": "dsh-heipm",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "type": "module",
   "main": "./index.js",
   "description": "DSH 项目管理面板：按项目浏览并管理约束、技能、经验流程与任务清单，配套经验流程提示词、quest-list 技能与 Markdown 表格样式。 · DSH project manager panel for constraints, skills, procedures and quest lists.",

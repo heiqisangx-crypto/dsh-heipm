@@ -78,17 +78,21 @@ CREATE INDEX idx_item_state ON item(state);
 | `set_evidence` | 写/追加证据 | ✅ | ✅ |
 | `remove` | 删除需求或子任务 | ✅ | ❌ |
 
-## 六、PTC 可见性方案（P1）
+## 六、PTC 可见性（已定论，无需配置）
 
-`dsh-ops/lib/publication/ptc.js` 的机制：
+**P1 已废弃**：`dsh-ops/lib/ptc/config.js:20-22` 对 `allowedTools` / `alwaysLoaded`
+做白名单校验，只接受 dsh-ops 自己的 API 名；填外部工具名会直接抛错。
+`cordis.patch.yml` 也无法绕过 —— 这条路线不通。
 
-- `ptc.js:44` —— `resident = new Set([...PTC_RESIDENT_TOOLS, ...config.alwaysLoaded])`
-- `ptc.js:61` —— `loadable = [...config.allowedTools, 'result']`
-- 可见性 = `resident.has(api) || entry.selected.has(api)`
+**实际采用**：PTC 只是让工具从 schema 消失，运行时仍可调用。
 
-P1 做法：在 `dsh-heipm/cordis.patch.yml` 里，给 `preset-ops-ptc` 的 `dsh-ops` 配置追加 `alwaysLoaded: ['quest_read', 'quest_write']`，让工具在 PTC 下常驻可见。
+| 场景 | 表现 |
+|---|---|
+| native 预设 | `quest_read` / `quest_write` 直接出现在工具列表 |
+| OPS-PTC 预设 | 不出现在列表，但 `run_code` 里 `tools.quest_write(...)` 可正常调用 |
 
-**待实测**：该 patch 能否改到其他插件插入的条目。失败则退 P3：由 `quest-list/SKILL.md` 教 agent 先 `load_sdk` 再用。
+因此**不需要任何 patch 配置**：`quest-list/SKILL.md` 写明工具名即可。
+（本项目的实测证据：在 PTC 预设下完成了 73 需求迁移与后续所有写入。）
 
 ## 七、迁移
 
@@ -99,21 +103,29 @@ P1 做法：在 `dsh-heipm/cordis.patch.yml` 里，给 `preset-ops-ptc` 的 `dsh
 
 ## 八、验收标准
 
-- [ ] `quest.db` 建库、读写、事务全部可用
-- [ ] 迁移后 73 个需求、全部子任务的标题与状态逐条一致
-- [ ] 面板勾选通过 `itemId` 写回，不再使用行号
-- [ ] 需求序号由 `seq` 渲染成独立样式块，标题文本不含序号
-- [ ] `quest_read` / `quest_write` 在 native 预设下可直接调用
-- [ ] `quest_read` / `quest_write` 在 OPS-PTC 预设下可调用（P1 成功或 P3 兜底生效）
-- [ ] `npm test` 全绿
+- [x] `quest.db` 建库、读写、事务全部可用 ｜ 证据：`test/quest-store.mjs` → 20 ok
+- [x] 迁移后 73 个需求、全部子任务的标题与状态逐条一致 ｜ 证据：`scripts/migrate-quest.mjs` → `mismatches=0`
+- [x] 面板勾选通过 `itemId` 写回，不再使用行号 ｜ 证据：`client.quest.js:370`；`test/host.mjs`「a task id survives a round trip through the panel」
+- [ ] **需求序号由 `seq` 渲染成独立样式块** ｜ 未做，见下文遗留
+- [x] `quest_read` / `quest_write` 在 native 预设下可直接调用 ｜ 证据：`test/quest-tools.mjs` → 14 ok
+- [x] `quest_read` / `quest_write` 在 OPS-PTC 预设下可调用 ｜ 证据：PTC 会话内完成迁移与全部写入
+- [x] `npm test` 全绿 ｜ 证据：`EXIT=0`、354 条
+
+### 遗留
+
+- 面板需求序号还没有独立样式块（当前序号不显示，标题也不含序号）。
+- 面板还没有接入 `add_req` / `add_item` / `remove` 入口，目前只有 agent 和状态勾选。
 
 ## 九、文件范围（待 review）
 
 | 文件 | 内容 |
 |---|---|
-| 新增 `quest-store.js` | SQLite 封装 + 迁移 |
-| `index.js` | 读写改走 store，删除旧解析（约 250 行） |
-| `client.quest.js` | `line` → `itemId`（仅 1 处） |
-| `quest-list/SKILL.md` | 改教 agent 用新工具 |
-| 测试 | 新增 + `test/host.mjs` |
-| `cordis.patch.yml` | P1 的 `alwaysLoaded` 补丁 |
+| 新增 `quest-store.js` | SQLite 封装 + 迁移 ✅ |
+| 新增 `quest-tools.js` | `quest_read` / `quest_write` ✅ |
+| 新增 `scripts/parse-legacy.mjs` | 旧格式解析器（仅迁移用）✅ |
+| 新增 `scripts/migrate-quest.mjs` | 导入 + 逐条核对 ✅ |
+| 新增 `scripts/finalize-quest.mjs` | 快照 + 删除旧文件 ✅ |
+| `index.js` | 读写改走 store，删除旧解析（1585 → 1357 行）✅ |
+| `client.quest.js` | `line` → `itemId`（仅 1 处）✅ |
+| `quest-list/SKILL.md` / `prompt.md` | 改教 agent 用新工具 ✅ |
+| `cordis.patch.yml` | 无需改动（P1 已废弃）✅ |

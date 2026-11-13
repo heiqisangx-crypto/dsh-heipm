@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 const { __test } = await import('../index.js')
+const { parseQuestMarkdown } = await import('../scripts/parse-legacy.mjs')
 
 const fs = {
   resolve: async value => value,
@@ -144,10 +145,10 @@ try {
   }
   check('unknown project is rejected', rejected)
 
-  // 任务清单建立在 SQLite 里；旧 Markdown 只作为一次性导入源。
+  // 任务清单建在 SQLite 里：运行时不再解析 Markdown，这里直接照迁移脚本的做法建库。
   const questFile = path.join(workspace, '.dsh', 'dsh-heipm', '任务清单.md')
   await mkdir(path.dirname(questFile), { recursive: true })
-  await writeFile(questFile, [
+  const legacyText = [
     '[ ] 一、登录页',
     '\t[√] 生成接口',
     '\t[ ] 前端组件',
@@ -156,7 +157,26 @@ try {
     '[ ] 三、空壳',
     '\t[O] 只差验收',
     '',
-  ].join('\n'))
+  ].join('\n')
+  await writeFile(questFile, legacyText)
+  {
+    const { parseQuestMarkdown } = await import('../scripts/parse-legacy.mjs')
+    const { openQuestDb, importRequirements } = await import('../quest-store.js')
+    const parsed = parseQuestMarkdown(legacyText)
+    const seed = parsed.items.map((req, index) => ({
+      id: 'r' + (index + 1),
+      seq: index + 1,
+      title: String(req.label || '').replace(/^[一二三四五六七八九十百]+、\s*/, '').trim(),
+      items: (req.children || []).map((child, order) => ({
+        id: 'r' + (index + 1) + '-i' + (order + 1),
+        title: String(child.label || '').trim(),
+        state: child.state || 'open',
+      })),
+    }))
+    const seedDb = openQuestDb(path.join(workspace, '.dsh', 'dsh-heipm', 'quest.db'))
+    importRequirements(seedDb, seed)
+    seedDb.close()
+  }
 
   globalThis.__heipmQuestList = undefined
   check('quest entry hides without the sub-plugin', (await __test.collect(ctx, null)).questEnabled === false)
@@ -226,8 +246,41 @@ try {
   const cleared = await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'done', version: running.version })
   check('quest toggle moves the task out of running', cleared.counts.running === 0, JSON.stringify(cleared.counts))
 
-  // 面板勾选靠 id 回写，不再是行号：本轮新增的用例用最新 revision。
-  const roundTrip = await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'running', version: cleared.version })
+  // 面板新增/删除：需求与子任务两个 kind，删除需求会带走子任务。
+  const createdReq = await __test.createQuestNode(ctx, { projectPath: workspace, kind: 'req', title: '面板新增的需求' })
+  const createdId = createdReq.items[createdReq.items.length - 1].id
+  check('the panel can add a requirement', createdReq.items.length === 4, JSON.stringify(createdReq.items.map(item => item.label)))
+  const createdItem = await __test.createQuestNode(ctx, { projectPath: workspace, kind: 'item', requirementId: createdId, title: '面板新增的子任务' })
+  check('the panel can add a subtask', createdItem.items[createdItem.items.length - 1].children.length === 1,
+    JSON.stringify(createdItem.items[createdItem.items.length - 1].children))
+  // 给子任务再加子任务：parentId 指向已有的子任务。
+  const parentTask = createdItem.items[createdItem.items.length - 1].children[0]
+  const nested = await __test.createQuestNode(ctx, { projectPath: workspace, kind: 'item', parentId: parentTask.id, title: '孙任务' })
+  const nestedParent = nested.items[nested.items.length - 1].children[0]
+  check('a subtask can hold its own subtask',
+    nestedParent.children.length === 1 && nestedParent.children[0].label === '孙任务',
+    JSON.stringify(nestedParent.children.map(child => child.label)))
+
+  const removed = await __test.removeQuestNode(ctx, { projectPath: workspace, id: createdId })
+  check('removing a requirement takes its subtasks with it', removed.items.length === 3, JSON.stringify(removed.items.length))
+  // 改名用仍然存在的节点：上面那条新建的需求已经随删除用例消失。
+  const renamedItem = await __test.renameQuestNode(ctx, { projectPath: workspace, id: target.id, title: '改过名的子任务' })
+  check('the panel can rename a subtask',
+    renamedItem.items[0].children[1].label === '改过名的子任务', JSON.stringify(renamedItem.items[0].children.map(child => child.label)))
+  const renamed = await __test.renameQuestNode(ctx, { projectPath: workspace, id: renamedItem.items[0].id, title: '改过名的需求' })
+  check('the panel can rename a requirement',
+    renamed.items[0].label === '改过名的需求', JSON.stringify(renamed.items.map(item => item.label)))
+  let renameRejected = false
+  try { await __test.renameQuestNode(ctx, { projectPath: workspace, id: 'nope', title: 'x' }) } catch (error) { renameRejected = error && error.statusCode === 400 }
+  check('renaming an unknown node is refused', renameRejected)
+
+  let removeRejected = false
+  try { await __test.removeQuestNode(ctx, { projectPath: workspace, id: 'nope' }) } catch (error) { removeRejected = error && error.statusCode === 400 }
+  check('removing an unknown node is refused', removeRejected)
+
+  // 面板勾选靠 id 回写，不再是行号：上面的新建/删除写过库，这里重新读一次版本。
+  const latest = await __test.readQuestList(ctx, { projectPath: workspace })
+  const roundTrip = await __test.setQuestState(ctx, { projectPath: workspace, itemId: target.id, state: 'running', version: latest.version })
   check('a task id survives a round trip through the panel',
     roundTrip.items[0].children[1].state === 'running', JSON.stringify(roundTrip.items[0].children[1]))
 
@@ -238,7 +291,7 @@ try {
     return read.exists === true && read.items.length > 0
   })())
 
-  const headed = __test.parseQuestMarkdown([
+  const headed = parseQuestMarkdown([
     '# 总览',
     '',
     '一、登录页',
@@ -258,9 +311,9 @@ try {
   check('heading is marked as heading', headed.items[0].kind === 'heading', headed.items[0].kind)
   check('counts skip headings', headed.counts.total === 4 && headed.counts.done === 3 && headed.counts.open === 1,
     JSON.stringify(headed.counts))
-  check('task window is flat', __test.parseQuestMarkdown('[ ] 甲\n[ ] 乙\n').items.length === 2)
+  check('task window is flat', parseQuestMarkdown('[ ] 甲\n[ ] 乙\n').items.length === 2)
 
-  const numbered = __test.parseQuestMarkdown([
+  const numbered = parseQuestMarkdown([
     '三十六、分块改名',
     '[√] 子步骤甲',
     '[√] 三十七、子需求：单独一节',

@@ -125,12 +125,15 @@ ok('a nested requirement starts empty', () => {
 
 ok('subtasks nest one level down', () => {
   mid = addItem(db2, 'r1', '父任务')
-  leafA = addItem(db2, 'r1', '子任务A')
-  leafB = addItem(db2, 'r1', '子任务B')
-  db2.prepare('UPDATE item SET parent_id = ? WHERE id = ?').run(mid.id, leafA.id)
-  db2.prepare('UPDATE item SET parent_id = ? WHERE id = ?').run(mid.id, leafB.id)
-  const node = readTree(db2).requirements[0].items.find(entry => entry.id === mid.id)
-  assert.equal(node.leaves, 2)
+  leafA = addItem(db2, 'r1', '子任务A', undefined, mid.id)
+  leafB = addItem(db2, 'r1', '子任务B', undefined, mid.id)
+  assert.equal(leafA.parentId, mid.id)
+  const root = readTree(db2).requirements[0].items
+  // 只有 mid 在顶层，两个叶子挂在它下面。
+  assert.equal(root.length, 1)
+  assert.equal(root[0].id, mid.id)
+  assert.deepEqual(root[0].children.map(child => child.id), [leafA.id, leafB.id])
+  assert.equal(root[0].leaves, 2)
 })
 
 ok('an intermediate node cannot be toggled', () => {
@@ -163,6 +166,26 @@ ok('counts skip intermediate nodes', () => {
   assert.equal(tree.counts.total, 2)
   assert.equal(tree.counts.done, 1)
   assert.equal(tree.counts.open, 1)
+})
+
+ok('a third level nests under a subtask', () => {
+  const grand = addItem(db2, 'r1', '孙任务', undefined, leafA.id)
+  const root = readTree(db2).requirements[0].items
+  assert.equal(root.length, 1)
+  assert.equal(root[0].children[0].children[0].id, grand.id)
+  // leafA 现在有子节点，不再是叶子：叶子只剩 leafB 与 grand。
+  assert.equal(root[0].leaves, 2)
+  assert.equal(root[0].doneLeaves, 0)
+  assert.equal(readTree(db2).counts.total, 2)
+})
+
+ok('adding under an unknown parent is refused', () => {
+  assert.throws(() => addItem(db2, 'r1', '孤儿', undefined, 'nope'), /Unknown parent/)
+})
+
+ok('adding under a parent of another requirement is refused', () => {
+  const other = addRequirement(db2, '另一个需求')
+  assert.throws(() => addItem(db2, other.id, '串门', undefined, leafB.id), /another requirement/)
 })
 
 db2.close()

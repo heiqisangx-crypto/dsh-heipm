@@ -26,6 +26,17 @@ window.__ModuleLoader__.load({
       'action.expand': 'Show subtasks',
       'action.collapse': 'Hide subtasks',
       'action.toggle': 'Cycle: open -> awaiting -> done -> open',
+      'action.addReq': 'New requirement',
+      'action.addReqPrompt': 'Requirement title (no number, no marker):',
+      'action.addItem': 'Add subtask',
+      'action.addItemPrompt': 'Subtask title:',
+      'action.rename': 'Rename',
+      'action.renamePrompt': 'New title:',
+      'action.remove': 'Delete',
+      'action.removeConfirm': 'Delete "{label}"? Subtasks go with it.',
+      'seq.title': 'Requirement number',
+      'action.cancel': 'Cancel',
+      'action.confirm': 'OK',
       'action.retry': 'Try again',
       'error.load': 'Could not read the task list.',
       'error.staleAlert': 'The task list changed on disk; reloading.',
@@ -61,6 +72,17 @@ window.__ModuleLoader__.load({
       'action.expand': '展开子任务',
       'action.collapse': '收起子任务',
       'action.toggle': '点击切换：未完成 → 待验收 → 已完成 → 未完成',
+      'action.addReq': '新增需求',
+      'action.addReqPrompt': '需求标题（不写序号、不写状态标记）：',
+      'action.addItem': '加子任务',
+      'action.addItemPrompt': '子任务标题：',
+      'action.rename': '改名',
+      'action.renamePrompt': '新的标题：',
+      'action.remove': '删除',
+      'action.removeConfirm': '删除「{label}」？子任务会一起删掉。',
+      'seq.title': '需求序号',
+      'action.cancel': '取消',
+      'action.confirm': '确定',
       'action.retry': '重试',
       'error.load': '读取任务清单失败。',
       'error.staleAlert': '任务清单在磁盘上已被修改，正在重新加载。',
@@ -94,13 +116,13 @@ window.__ModuleLoader__.load({
       .pm-quest-chip[data-kind="open"]::before { background: var(--dsw-alias-label-secondary); }
       .pm-quest-chip[data-kind="awaiting"]::before { background: var(--pm-accent); }
       .pm-quest-chip[data-kind="done"]::before { background: #2ea043; }
-      .pm-quest-card { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
+      .pm-quest-card { min-height: 38px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
       .pm-quest-card[data-state="done"] { opacity: .8; }
       .pm-quest-row { display: flex; align-items: flex-start; gap: 8px; padding: 5px 12px; border-radius: 8px; }
       .pm-quest-row:hover { background: var(--pm-accent-softer); }
-      .pm-quest-row.is-parent { padding: 8px 12px; }
+      .pm-quest-row.is-parent { align-items: center; padding: 6px 18px 6px 10px; }
       .pm-quest-toggle {
-        flex: 0 0 auto; display: grid; place-items: center; width: 22px; height: 22px; margin-top: 1px;
+        flex: 0 0 auto; display: grid; place-items: center; width: 22px; height: 22px; margin-top: 0;
         border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer;
       }
       .pm-quest-toggle:hover { color: var(--pm-accent-strong); background: var(--pm-accent-soft); }
@@ -109,6 +131,26 @@ window.__ModuleLoader__.load({
       .pm-quest-toggle[aria-expanded="true"] .pm-quest-caret { transform: rotate(90deg); }
       .pm-quest-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
       .pm-quest-head { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+      /* 需求序号：由 requirement.seq 渲染的独立徽章，不进标题正文。 */
+      .pm-quest-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .38); }
+      .pm-quest-dialog { width: min(560px, calc(100vw - 48px)); padding: 20px 24px; border-radius: 10px; background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1); box-shadow: 0 18px 48px rgba(0, 0, 0, .35); display: flex; flex-direction: column; gap: 10px; }
+      .pm-quest-dialog-title { font-size: 14px; font-weight: 700; }
+      .pm-quest-dialog-body { font-size: 12.5px; color: var(--dsw-alias-label-secondary); display: flex; flex-direction: column; gap: 6px; }
+      .pm-quest-dialog-label { color: var(--dsw-alias-label-secondary); }
+      .pm-quest-input { box-sizing: border-box; width: 100%; min-height: 34px; padding: 7px 11px; border-radius: 7px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font-size: 13px; outline: none; }
+      .pm-quest-input:focus { border-color: var(--pm-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--pm-accent) 22%, transparent); }
+      .pm-quest-dialog-foot { display: flex; justify-content: flex-end; gap: 8px; }
+      .pm-quest-btn { padding: 5px 14px; border-radius: 7px; border: 1px solid var(--dsw-alias-border-l1); background: transparent; color: var(--dsw-alias-label-primary); font-size: 12.5px; cursor: pointer; }
+      .pm-quest-btn:hover { border-color: var(--pm-accent); color: var(--pm-accent-strong); }
+      .pm-quest-btn.primary { background: var(--pm-accent); border-color: var(--pm-accent); color: #fff; }
+      .pm-quest-btn.primary:hover { filter: brightness(1.08); color: #fff; }
+      .pm-quest-add { flex: 0 0 auto; margin-left: auto; padding: 2px 10px; border-radius: 6px; border: 1px dashed color-mix(in srgb, var(--pm-accent) 45%, transparent); background: transparent; color: var(--pm-accent-strong); font-size: 12px; cursor: pointer; }
+      .pm-quest-add:hover { background: color-mix(in srgb, var(--pm-accent) 10%, transparent); border-style: solid; }
+      .pm-quest-mini { flex: 0 0 auto; width: 18px; height: 18px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--dsw-alias-label-secondary) 30%, transparent); background: transparent; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1; cursor: pointer; opacity: 0; }
+      .pm-quest-row:hover .pm-quest-mini, .pm-quest-row:focus-within .pm-quest-mini, .pm-quest-solo .pm-quest-mini { opacity: 1; }
+      .pm-quest-mini:hover { border-color: var(--pm-accent); color: var(--pm-accent-strong); }
+      .pm-quest-mini-danger:hover { border-color: #d9534f; color: #d9534f; }
+      .pm-quest-seq { flex: 0 0 auto; min-height: 18px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--pm-accent-strong); background: color-mix(in srgb, var(--pm-accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--pm-accent) 32%, transparent); }
       .pm-quest-head-text { flex: 1 1 auto; min-width: 0; font-size: 13.5px; font-weight: 600; line-height: 1.55; color: var(--dsw-alias-label-primary); word-break: break-word; }
       .pm-quest-text { flex: 1 1 auto; min-width: 0; font-size: 12.5px; line-height: 1.7; color: var(--dsw-alias-label-primary); word-break: break-word; cursor: pointer; }
       .pm-quest-row.leaf[data-state="done"] .pm-quest-text { color: var(--dsw-alias-label-secondary); }
@@ -122,8 +164,8 @@ window.__ModuleLoader__.load({
       .pm-quest-group-head[aria-expanded="true"] .pm-quest-caret { transform: rotate(90deg); }
       .pm-quest-group-count { font-variant-numeric: tabular-nums; opacity: .75; }
       .pm-quest-group-body { display: flex; flex-direction: column; gap: 10px; }
-      .pm-quest-solo { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); }
-      .pm-quest-solo .pm-quest-head { padding: 10px 12px; cursor: default; }
+      .pm-quest-solo { min-height: 38px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); }
+      .pm-quest-solo .pm-quest-head { align-items: center; padding: 6px 18px 6px 10px; cursor: default; }
       .pm-quest-solo .pm-quest-head-text { font-size: 13px; font-weight: 500; }
       .pm-quest-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; padding: 1px 5px; border-radius: 5px; background: var(--pm-accent-softer); color: var(--pm-accent-strong); }
       .pm-quest-children { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 2px 8px; border-left: 1px solid var(--dsw-alias-border-l1); margin-left: 10px; }
@@ -305,6 +347,9 @@ window.__ModuleLoader__.load({
         const [tracked, setTracked] = useState([])
         const [picking, setPicking] = useState(false)
         const [pickQuery, setPickQuery] = useState('')
+        // 输入/确认弹窗：Electron 不支持 window.prompt，改用页内弹窗。
+        const [ask, setAsk] = useState(null)
+        const askResolve = useRef(null)
         const alive = useRef(true)
         const projectPath = project && project.path ? project.path : null
 
@@ -362,6 +407,89 @@ window.__ModuleLoader__.load({
           setExpanded(current => ({ ...current, [line]: !current[line] }))
         }
 
+        /** 打开页内弹窗，返回用户输入的文本；取消返回 null。 */
+        function askText(title, label, initial = '') {
+          return new Promise(resolve => {
+            askResolve.current = resolve
+            setAsk({ kind: 'text', title, label, value: initial })
+          })
+        }
+
+        function askConfirm(title, label) {
+          return new Promise(resolve => {
+            askResolve.current = resolve
+            setAsk({ kind: 'confirm', title, label, value: '' })
+          })
+        }
+
+        function settleAsk(value) {
+          const resolve = askResolve.current
+          askResolve.current = null
+          setAsk(null)
+          if (typeof resolve === 'function') resolve(value)
+        }
+
+        /** 新增需求：页内输入框，拿到标题就走宿主 action。 */
+        async function addRequirement() {
+          if (!projectPath) return
+          const title = await askText(t('action.addReq'), t('action.addReqPrompt'))
+          if (!title || !title.trim()) return
+          setBusy(current => ({ ...current, __add: true }))
+          setNotice(null)
+          api({ action: 'quest-create', projectPath, kind: 'req', title: title.trim() })
+            .then(result => {
+              if (!alive.current) return
+              setDoc(normalize(result))
+              if (typeof onStamp === 'function') onStamp(normalize(result).version || '-')
+            })
+            .catch(failure => setNotice(failure && failure.message ? failure.message : String(failure)))
+            .finally(() => setBusy(current => ({ ...current, __add: false })))
+        }
+
+        /** 新增子任务：isRequirement 为真就挂在需求下，否则挂在某个子任务下。 */
+        async function addItem(nodeId, isRequirement) {
+          if (!projectPath) return
+          const title = await askText(t('action.addItem'), t('action.addItemPrompt'))
+          if (!title || !title.trim()) return
+          setNotice(null)
+          const payload = { action: 'quest-create', projectPath, kind: 'item', title: title.trim() }
+          if (isRequirement) payload.requirementId = nodeId
+          else payload.parentId = nodeId
+          api(payload)
+            .then(result => { if (alive.current) setDoc(normalize(result)) })
+            .catch(failure => setNotice(failure && failure.message ? failure.message : String(failure)))
+        }
+
+        /** 改标题：需求与子任务都走同一个 action。 */
+        async function renameItem(id, label) {
+          if (!projectPath) return
+          const title = await askText(t('action.rename'), t('action.renamePrompt'), label || '')
+          if (!title || !title.trim() || title.trim() === label) return
+          setNotice(null)
+          api({ action: 'quest-rename', projectPath, id, title: title.trim() })
+            .then(result => {
+              if (!alive.current) return
+              setDoc(normalize(result))
+              if (typeof onStamp === 'function') onStamp(normalize(result).version || '-')
+            })
+            .catch(failure => setNotice(failure && failure.message ? failure.message : String(failure)))
+        }
+
+        /** 删除节点：需求连同子任务一起删，所以先确认。 */
+        async function removeItem(id, label) {
+          if (!projectPath) return
+          const ok = await askConfirm(t('action.remove'), t('action.removeConfirm', { label }))
+          if (!ok) return
+          setNotice(null)
+          api({ action: 'quest-remove', projectPath, id })
+            .then(result => {
+              if (!alive.current) return
+              setDoc(normalize(result))
+              if (typeof onStamp === 'function') onStamp(normalize(result).version || '-')
+            })
+            .catch(failure => setNotice(failure && failure.message ? failure.message : String(failure)))
+        }
+
         function cycle(item) {
           if (!doc || doc.keepOpen) return
           const nextState = NEXT_STATE[item.state] || 'awaiting'
@@ -413,7 +541,19 @@ window.__ModuleLoader__.load({
               disabled,
               onClick: () => cycle(item),
             }, spinner || label),
-            h('span', { className: 'pm-quest-text', onClick: () => cycle(item) }, renderInline(item.label)),
+            h('span', { className: 'pm-quest-text', onClick: () => cycle(item), onDoubleClick: () => { if (item.id) renameItem(item.id, item.label) } }, renderInline(item.label)),
+            item.id ? h('button', {
+              type: 'button', className: 'pm-quest-mini', title: t('action.addItem'), 'aria-label': t('action.addItem'),
+              onClick: (event) => { event.stopPropagation(); addItem(item.id, false) },
+            }, '+') : null,
+            item.id ? h('button', {
+              type: 'button', className: 'pm-quest-mini', title: t('action.rename'), 'aria-label': t('action.rename'),
+              onClick: (event) => { event.stopPropagation(); renameItem(item.id, item.label) },
+            }, '\u270E') : null,
+            item.id ? h('button', {
+              type: 'button', className: 'pm-quest-mini pm-quest-mini-danger', title: t('action.remove'), 'aria-label': t('action.remove'),
+              onClick: (event) => { event.stopPropagation(); removeItem(item.id, item.label) },
+            }, '\u00D7') : null,
           )
         }
 
@@ -429,8 +569,21 @@ window.__ModuleLoader__.load({
           return h('div', { key: item.line, className: 'pm-quest-row is-parent pm-quest-solo', 'data-state': done ? 'done' : 'open', 'data-line': item.line },
             h('div', { className: 'pm-quest-body' },
               h('div', { className: 'pm-quest-head' },
+                item.seq ? h('span', { className: 'pm-quest-seq', title: t('seq.title') || String(item.seq) }, String(item.seq)) : null,
                 h('span', { className: 'pm-quest-head-text' }, renderInline(item.label)),
                 h('span', { className: 'pm-quest-label', 'data-state': done ? 'done' : 'open' }, done ? t('state.done') : t('state.open')),
+                item.id ? h('button', {
+                  type: 'button', className: 'pm-quest-mini', title: t('action.addItem'), 'aria-label': t('action.addItem'),
+                  onClick: (event) => { event.stopPropagation(); addItem(item.id, true) },
+                }, '+') : null,
+                item.id ? h('button', {
+                  type: 'button', className: 'pm-quest-mini', title: t('action.rename'), 'aria-label': t('action.rename'),
+                  onClick: (event) => { event.stopPropagation(); renameItem(item.id, item.label) },
+                }, '\u270E') : null,
+                item.id ? h('button', {
+                  type: 'button', className: 'pm-quest-mini pm-quest-mini-danger', title: t('action.remove'), 'aria-label': t('action.remove'),
+                  onClick: (event) => { event.stopPropagation(); removeItem(item.id, item.label) },
+                }, '\u00D7') : null,
               ),
             ),
           )
@@ -463,9 +616,31 @@ window.__ModuleLoader__.load({
             }, caret),
             h('div', { className: 'pm-quest-body' },
               h('button', { type: 'button', className: 'pm-quest-head', onClick: () => { if (!isTracked) toggleBranch(item.line) } },
+                item.seq ? h('span', { className: 'pm-quest-seq', title: t('seq.title') || String(item.seq) }, String(item.seq)) : null,
                 h('span', { className: 'pm-quest-head-text' }, renderInline(item.label)),
                 h('span', { className: 'pm-quest-label', 'data-state': isDone ? 'done' : 'open' }, isDone ? t('state.done') : t('state.open')),
                 isTracked ? h('span', { className: 'pm-quest-label', 'data-state': 'tracked' }, t('track.active')) : null,
+                h('button', {
+                  type: 'button',
+                  className: 'pm-quest-mini',
+                  title: t('action.addItem'),
+                  'aria-label': t('action.addItem'),
+                  onClick: (event) => { event.stopPropagation(); if (item.id) addItem(item.id, depth === 0) },
+                }, '+'),
+                h('button', {
+                  type: 'button',
+                  className: 'pm-quest-mini',
+                  title: t('action.rename'),
+                  'aria-label': t('action.rename'),
+                  onClick: (event) => { event.stopPropagation(); if (item.id) renameItem(item.id, item.label) },
+                }, '\u270E'),
+                h('button', {
+                  type: 'button',
+                  className: 'pm-quest-mini pm-quest-mini-danger',
+                  title: t('action.remove'),
+                  'aria-label': t('action.remove'),
+                  onClick: (event) => { event.stopPropagation(); if (item.id) removeItem(item.id, item.label) },
+                }, '×'),
                 depth === 0
                   ? h('button', {
                       type: 'button',
@@ -536,6 +711,41 @@ window.__ModuleLoader__.load({
         const left = doc.items.filter(item => !isFinished(item)).length
         const trackedItems = doc.items.filter(item => tracked.includes(item.line))
 
+        // 页内弹窗：输入标题或确认删除。Electron 不支持 window.prompt。
+        const dialog = ask
+          ? h('div', {
+              className: 'pm-quest-overlay',
+              onClick: event => { if (event.target === event.currentTarget) settleAsk(null) },
+              onKeyDown: event => { if (event.key === 'Escape') settleAsk(null) },
+            },
+            h('div', { className: 'pm-quest-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': ask.title },
+              h('div', { className: 'pm-quest-dialog-title' }, ask.title),
+              ask.kind === 'text'
+                ? h('div', { className: 'pm-quest-dialog-body' },
+                    h('div', { className: 'pm-quest-dialog-label' }, ask.label),
+                    h('input', {
+                      className: 'pm-quest-input',
+                      type: 'text',
+                      value: ask.value || '',
+                      autoFocus: true,
+                      maxLength: 200,
+                      onChange: event => setAsk(current => current ? { ...current, value: event.target.value } : current),
+                      onKeyDown: event => { if (event.key === 'Enter') settleAsk(event.target.value) },
+                    }),
+                  )
+                : h('div', { className: 'pm-quest-dialog-body' }, ask.label),
+              h('div', { className: 'pm-quest-dialog-foot' },
+                h('button', { type: 'button', className: 'pm-quest-btn', onClick: () => settleAsk(null) }, t('action.cancel')),
+                h('button', {
+                  type: 'button',
+                  className: 'pm-quest-btn primary',
+                  onClick: () => settleAsk(ask.kind === 'text' ? ask.value : true),
+                }, ask.kind === 'text' ? t('action.confirm') : t('action.remove')),
+              ),
+            ),
+          )
+          : null
+
         const tabs = h('div', { className: 'pm-quest-tabs', role: 'tablist' },
           h('button', {
             type: 'button',
@@ -562,6 +772,13 @@ window.__ModuleLoader__.load({
               : null,
             h('span', { className: 'pm-quest-tab-count' }, String(trackedItems.length)),
           ),
+          h('button', {
+            type: 'button',
+            className: 'pm-quest-add',
+            title: t('action.addReq'),
+            'aria-label': t('action.addReq'),
+            onClick: () => addRequirement(),
+          }, '+ ' + t('action.addReq')),
         )
 
         // 大需求可能上百条，平铺会被撑成一墙标签：默认只留一行，点开才是可搜索的列表。
@@ -623,6 +840,7 @@ window.__ModuleLoader__.load({
             trackedItems.length
               ? h('div', { className: 'pm-quest-group-body' }, trackedItems.map(renderRequirement))
               : h('div', { className: 'pm-placeholder' }, h('span', null, t('track.empty'))),
+            dialog,
           )
         }
 
@@ -651,6 +869,7 @@ window.__ModuleLoader__.load({
                 showDone ? h('div', { className: 'pm-quest-group-body' }, doneItems.map(renderRequirement)) : null,
               )
             : null,
+          dialog,
         )
       }
 
