@@ -1383,6 +1383,7 @@ window.__ModuleLoader__.load({
     const PROC_ROW_CLASS = 'hm-proc-row'
     const PROC_SHELF_CLASS = 'hm-proc-shelf'
     const PROC_STEP_CLASS = 'hm-proc-step'
+    const PROC_SPIN_CLASS = 'hm-proc-spin'
     const PROC_POP_CLASS = 'hm-proc-drawer'
     const PROC_POP_HEAD_CLASS = 'hm-proc-drawer-head'
     const PROC_DRAWER_TITLE_CLASS = 'hm-proc-drawer-title'
@@ -1410,6 +1411,13 @@ window.__ModuleLoader__.load({
 .hm-proc-step:hover{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 18%, transparent);color:var(--hm-accent, #ff9f43)}
 .hm-proc-step[aria-expanded="true"]{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 22%, transparent);color:var(--hm-accent, #ff9f43)}
 .hm-proc-step svg{display:block;fill:currentColor;height:19px;width:19px}
+.hm-proc-step[data-hm-proc-running="true"]{color:var(--hm-accent, #ff9f43)}
+.hm-proc-step[data-hm-proc-running="true"] svg{display:none}
+.hm-proc-spin{display:block;width:16px;height:16px;box-sizing:border-box;border-radius:999px;border:2px solid color-mix(in srgb, var(--hm-accent, #ff9f43) 30%, transparent);border-top-color:var(--hm-accent, #ff9f43);animation:hm-proc-spin .7s linear infinite}
+@keyframes hm-proc-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.hm-proc-spin{animation-duration:2.4s}}
+.hm-proc-drawer-follow[aria-pressed="true"] svg{display:none}
+.hm-proc-drawer-follow[aria-pressed="true"]::before{content:'';display:block;flex:0 0 auto;width:11px;height:11px;box-sizing:border-box;border-radius:999px;border:2px solid color-mix(in srgb, var(--hm-accent, #ff9f43) 30%, transparent);border-top-color:var(--hm-accent, #ff9f43);animation:hm-proc-spin .7s linear infinite}
 .hm-proc-drawer{background:var(--hm-panel, #1b1f26);border:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 30%, transparent);border-radius:var(--hm-radius, 10px);box-shadow:0 24px 64px rgba(0,0,0,.5);box-sizing:border-box;color:var(--hm-ink, #eceef2);display:flex;flex-direction:column;font-size:13px;line-height:1.65;overflow:hidden;position:fixed;z-index:1500}
 .hm-proc-drawer[hidden]{display:none}
 .hm-proc-drawer-head{align-items:center;border-bottom:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 22%, transparent);cursor:move;display:flex;flex:0 0 auto;gap:10px;padding:14px 16px;user-select:none}
@@ -2080,6 +2088,37 @@ window.__ModuleLoader__.load({
       later(() => fill(0))
     }
 
+    /* 运行中的一步：图标换成旋转圈；跑完换回原图标。 */
+    function stepSpinner(doc) {
+      const spin = doc.createElement('span')
+      spin.className = PROC_SPIN_CLASS
+      spin.setAttribute('aria-hidden', 'true')
+      return spin
+    }
+
+    function syncStepRunning(button, running, doc) {
+      const next = running ? 'true' : 'false'
+      if (button.getAttribute('data-hm-proc-running') === next) return
+      button.setAttribute('data-hm-proc-running', next)
+      const old = button.querySelector('.' + PROC_SPIN_CLASS)
+      if (old) old.remove()
+      if (running) button.appendChild(stepSpinner(doc))
+    }
+
+    /* 按 key 找回每组按钮对应的行，再据此刷新圈。 */
+    function syncShelfRunning(container, rows) {
+      const buttons = container.querySelectorAll('.' + PROC_STEP_CLASS)
+      if (!buttons.length) return
+      const byKey = typeof Map === 'function' ? new Map() : null
+      for (const row of rows) {
+        if (byKey) byKey.set(row.getAttribute('data-chat-flow-key'), row)
+      }
+      for (const button of buttons) {
+        const row = byKey ? byKey.get(button.getAttribute('data-hm-proc-id')) : null
+        syncStepRunning(button, !!(row && isRunningStep(row)), container.ownerDocument)
+      }
+    }
+
     function shelfButton(row, doc) {
       const button = doc.createElement('button')
       button.type = 'button'
@@ -2091,6 +2130,7 @@ window.__ModuleLoader__.load({
       button.title = summary || '过程'
       button.setAttribute('aria-label', button.title)
       button.appendChild(rowIcon(row, doc))
+      syncStepRunning(button, isRunningStep(row), doc)
       button.addEventListener('click', event => {
         if (event) {
           if (typeof event.preventDefault === 'function') event.preventDefault()
@@ -2191,6 +2231,8 @@ window.__ModuleLoader__.load({
       for (let index = 0; index < rows.length; index += 1) {
         if (roles[index] === 'process') trackStepTiming(rows[index])
       }
+      /* 签名不变时下面会提前返回，圈要在这里刷新，跑完才能停。 */
+      syncShelfRunning(container, rows)
       const signature = rows.map(row => row.getAttribute('data-chat-flow-key')).join('|') + '#' + roles.join(',')
       /* React 重建行后旧元素会丢 class，所以「签名没变」也得确认隐藏还在，不能直接跳过。 */
       const settled = roles.every((role, index) => role === 'prose' || rows[index].classList.contains(PROC_ROW_CLASS))

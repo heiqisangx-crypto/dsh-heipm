@@ -135,6 +135,13 @@ truthy('refills keep the drawer scroll position', SOURCE.includes('body.scrollTo
 truthy('docs list the flow row selector', DOC.includes('[data-chat-flow-key]'))
 truthy('docs list the process shelf', DOC.includes('hm-proc-shelf'))
 
+truthy('a running step shows a spinning ring instead of its icon', t.PROCESS_SHELF_CSS.includes('.hm-proc-spin{') && t.PROCESS_SHELF_CSS.includes('.hm-proc-step[data-hm-proc-running="true"] svg{display:none}'))
+truthy('the ring turns once per 0.7s and slows down for reduced motion', t.PROCESS_SHELF_CSS.includes('animation:hm-proc-spin .7s linear infinite') && t.PROCESS_SHELF_CSS.includes('@media (prefers-reduced-motion: reduce){.hm-proc-spin{animation-duration:2.4s}}'))
+truthy('a step that finishes gets its icon back', SOURCE.includes("button.setAttribute('data-hm-proc-running', next)") && SOURCE.includes('if (old) old.remove()'))
+truthy('running state is refreshed before the unchanged-signature early return', (SOURCE.match(/syncShelfRunning\(container, rows\)/g) || []).length >= 2)
+truthy('new step buttons are born with their running state', SOURCE.includes('syncStepRunning(button, isRunningStep(row), doc)'))
+truthy('the follow button becomes the same ring while following', t.PROCESS_SHELF_CSS.includes('.hm-proc-drawer-follow[aria-pressed="true"]::before') && t.PROCESS_SHELF_CSS.includes('.hm-proc-drawer-follow[aria-pressed="true"] svg{display:none}'))
+
 const noop = t.createProcessShelf()
 truthy('the shelf fail-closes without a document', typeof noop === 'function' && noop() === undefined)
 
