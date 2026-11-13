@@ -1395,6 +1395,9 @@ window.__ModuleLoader__.load({
     /* 抽屉开着时还在跑的那一步：收起宿主行会卸载正文，所以保持展开并持续重克隆。 */
     let PROC_DRAWER_LIVE = null
     const PROC_DRAWER_FOLLOW_PX = 48
+    const PROC_DRAWER_GEO_KEY = 'heipm:proc-drawer:geo:v1'
+    const PROC_DRAWER_MIN_W = 360
+    const PROC_DRAWER_MIN_H = 220
 
     const PROCESS_SHELF_CSS = `
 .hm-proc-row{display:none!important}
@@ -1403,9 +1406,10 @@ window.__ModuleLoader__.load({
 .hm-proc-step:hover{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 18%, transparent);color:var(--hm-accent, #ff9f43)}
 .hm-proc-step[aria-expanded="true"]{background:color-mix(in srgb, var(--hm-accent, #ff9f43) 22%, transparent);color:var(--hm-accent, #ff9f43)}
 .hm-proc-step svg{display:block;fill:currentColor;height:19px;width:19px}
-.hm-proc-drawer{background:var(--hm-panel, #1b1f26);border-left:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 30%, transparent);box-shadow:-18px 0 48px rgba(0,0,0,.45);box-sizing:border-box;color:var(--hm-ink, #eceef2);display:flex;flex-direction:column;font-size:13px;height:100vh;line-height:1.65;max-width:92vw;position:fixed;right:0;top:0;width:520px;z-index:1400}
+.hm-proc-drawer{background:var(--hm-panel, #1b1f26);border:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 30%, transparent);border-radius:var(--hm-radius, 10px);box-shadow:0 24px 64px rgba(0,0,0,.5);box-sizing:border-box;color:var(--hm-ink, #eceef2);display:flex;flex-direction:column;font-size:13px;line-height:1.65;overflow:hidden;position:fixed;z-index:1500}
 .hm-proc-drawer[hidden]{display:none}
-.hm-proc-drawer-head{align-items:center;border-bottom:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 22%, transparent);display:flex;flex:0 0 auto;gap:10px;padding:14px 16px}
+.hm-proc-drawer-head{align-items:center;border-bottom:1px solid color-mix(in srgb, var(--hm-line, #94a3b8) 22%, transparent);cursor:move;display:flex;flex:0 0 auto;gap:10px;padding:14px 16px;user-select:none}
+.hm-proc-drawer-grip{background:linear-gradient(135deg, transparent 0 50%, color-mix(in srgb, var(--hm-line, #94a3b8) 50%, transparent) 50% 100%);border-bottom-right-radius:var(--hm-radius, 10px);bottom:0;cursor:nwse-resize;height:16px;position:absolute;right:0;width:16px}
 .hm-proc-drawer-title{color:var(--hm-ink, #eceef2);font-size:14px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hm-proc-drawer-meta{color:var(--hm-dim, #a8adb8);font-size:12px;margin-left:auto;white-space:nowrap}
 .hm-proc-drawer-close{appearance:none;background:transparent;border:0;border-radius:8px;color:var(--hm-dim, #a8adb8);cursor:pointer;flex:0 0 auto;font-size:18px;height:28px;line-height:1;padding:0;width:28px}
@@ -1601,9 +1605,14 @@ window.__ModuleLoader__.load({
       head.appendChild(close)
       const body = doc.createElement('div')
       body.className = PROC_DRAWER_BODY_CLASS
+      const grip = doc.createElement('div')
+      grip.className = 'hm-proc-drawer-grip'
+      grip.setAttribute('aria-hidden', 'true')
       drawer.appendChild(head)
       drawer.appendChild(body)
+      drawer.appendChild(grip)
       doc.body.appendChild(drawer)
+      wireDrawerMove(drawer, doc)
       return drawer
     }
 
@@ -1637,6 +1646,104 @@ window.__ModuleLoader__.load({
         }
         body.appendChild(clone)
       } else body.appendChild(doc.createTextNode('这一步没有可展开的正文'))
+    }
+
+    /* 抽屉是一扇独立小窗：能拖、能拉、位置和大小记住。 */
+    function readDrawerGeo() {
+      try {
+        if (typeof localStorage === 'undefined') return null
+        const raw = localStorage.getItem(PROC_DRAWER_GEO_KEY)
+        if (!raw) return null
+        const geo = JSON.parse(raw)
+        const pick = key => (Number.isFinite(Number(geo[key])) ? Number(geo[key]) : null)
+        const left = pick('left')
+        const top = pick('top')
+        const width = pick('width')
+        const height = pick('height')
+        if (left === null || top === null || width === null || height === null) return null
+        return { left, top, width, height }
+      } catch (error) {
+        return null
+      }
+    }
+
+    function saveDrawerGeo(geo) {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(PROC_DRAWER_GEO_KEY, JSON.stringify(geo))
+      } catch (error) {
+        /* 存不下就算了，下次用默认位置 */
+      }
+    }
+
+    function viewportSize(doc) {
+      const root = doc && doc.documentElement
+      const width = (root && root.clientWidth) || (typeof window !== 'undefined' && window.innerWidth) || 1200
+      const height = (root && root.clientHeight) || (typeof window !== 'undefined' && window.innerHeight) || 800
+      return { width, height }
+    }
+
+    function clampDrawerGeo(doc, geo) {
+      const view = viewportSize(doc)
+      const width = Math.min(Math.max(geo.width, PROC_DRAWER_MIN_W), Math.max(PROC_DRAWER_MIN_W, view.width - 16))
+      const height = Math.min(Math.max(geo.height, PROC_DRAWER_MIN_H), Math.max(PROC_DRAWER_MIN_H, view.height - 16))
+      return {
+        left: Math.min(Math.max(geo.left, 8), Math.max(8, view.width - width - 8)),
+        top: Math.min(Math.max(geo.top, 8), Math.max(8, view.height - height - 8)),
+        width,
+        height,
+      }
+    }
+
+    function defaultDrawerGeo(doc) {
+      const view = viewportSize(doc)
+      const width = Math.min(520, Math.max(PROC_DRAWER_MIN_W, view.width - 32))
+      const height = Math.min(Math.round(view.height * 0.72), Math.max(PROC_DRAWER_MIN_H, view.height - 32))
+      return { left: view.width - width - 24, top: Math.round((view.height - height) / 2), width, height }
+    }
+
+    function applyDrawerGeo(drawer, doc, geo) {
+      const box = clampDrawerGeo(doc, geo)
+      drawer.style.left = box.left + 'px'
+      drawer.style.top = box.top + 'px'
+      drawer.style.width = box.width + 'px'
+      drawer.style.height = box.height + 'px'
+      drawer.__hmGeo = box
+      return box
+    }
+
+    function placeDrawer(drawer, doc) {
+      applyDrawerGeo(drawer, doc, readDrawerGeo() || defaultDrawerGeo(doc))
+    }
+
+    /* 按住头部挪、按住右下角拉；松手才写一次 localStorage。 */
+    function wireDrawerMove(drawer, doc) {
+      const head = drawer.querySelector('.' + PROC_POP_HEAD_CLASS)
+      const grip = drawer.querySelector('.hm-proc-drawer-grip')
+      const begin = (event, mode) => {
+        if (!event || (typeof event.button === 'number' && event.button !== 0)) return
+        if (mode === 'move' && event.target && typeof event.target.closest === 'function' && event.target.closest('button')) return
+        const rect = drawer.getBoundingClientRect ? drawer.getBoundingClientRect() : null
+        if (!rect) return
+        if (event.preventDefault) event.preventDefault()
+        const start = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+        const move = ev => {
+          const dx = ev.clientX - start.x
+          const dy = ev.clientY - start.y
+          const next = mode === 'move'
+            ? { left: start.left + dx, top: start.top + dy, width: start.width, height: start.height }
+            : { left: start.left, top: start.top, width: start.width + dx, height: start.height + dy }
+          applyDrawerGeo(drawer, doc, next)
+        }
+        const end = () => {
+          doc.removeEventListener('mousemove', move, true)
+          doc.removeEventListener('mouseup', end, true)
+          if (drawer.__hmGeo) saveDrawerGeo(drawer.__hmGeo)
+        }
+        doc.addEventListener('mousemove', move, true)
+        doc.addEventListener('mouseup', end, true)
+      }
+      if (head && head.addEventListener) head.addEventListener('mousedown', event => begin(event, 'move'))
+      if (grip && grip.addEventListener) grip.addEventListener('mousedown', event => begin(event, 'resize'))
     }
 
     function processRowByKey(doc, key) {
@@ -1778,6 +1885,7 @@ window.__ModuleLoader__.load({
       button.setAttribute('aria-expanded', 'true')
       drawer.setAttribute('data-hm-proc-owner', id)
       PROC_DRAWER_OPENED_AT = Date.now()
+      placeDrawer(drawer, doc)
       fillProcessDrawer(drawer, row, doc)
       drawer.hidden = false
       /* 详情是「点开才挂载」的：借宿主开关把正文挂上，抽屉开着期间保持展开。 */

@@ -172,7 +172,7 @@ No runtime dependencies; tests use Node built-ins only:
 npm test
 ```
 
-Tests cover the host data layer (collect / save / delete / quest list / per-module refresh and file fingerprints / theme file), client rendering, markdown styling, the process shelf, style settings, the workspace context menu, the UI contract and kill switches; **12 suites, 294 assertions** today.
+Tests cover the host data layer (collect / save / delete / quest list / per-module refresh and file fingerprints / theme file), client rendering, markdown styling, the process shelf, style settings, the workspace context menu, the UI contract and kill switches; **12 suites, 300 assertions** today.
 
 ## Compatibility
 

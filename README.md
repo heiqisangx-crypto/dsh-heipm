@@ -172,7 +172,7 @@ dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
 npm test
 ```
 
-测试覆盖 Host 侧（收集 / 保存 / 删除 / 任务清单 / 按模块刷新与文件指纹 / 主题文件）、客户端渲染、Markdown 表格样式、过程收纳、样式设置、工作区右键菜单，以及 UI 契约与降级开关；当前 **12 套、294 条断言**。
+测试覆盖 Host 侧（收集 / 保存 / 删除 / 任务清单 / 按模块刷新与文件指纹 / 主题文件）、客户端渲染、Markdown 表格样式、过程收纳、样式设置、工作区右键菜单，以及 UI 契约与降级开关；当前 **12 套、300 条断言**。
 
 ## 兼容性
 
