@@ -77,7 +77,7 @@ test/                    零依赖测试
 ## 安装
 
 要求：DSH `>=0.2.2-rc.1 <0.2.3-0`（见 `engines.dsh`），Node `^22.19 || >=24`。
-当前版本 **`0.21.0`**。本项目**只从 GitHub 分发，未发布 npm**（因此插件市场里搜不到，请用下面的地址安装）。
+当前版本 **`0.22.0`**。本项目**只从 GitHub 分发，未发布 npm**（因此插件市场里搜不到，请用下面的地址安装）。
 
 **一行安装（推荐）**：
 
@@ -85,7 +85,7 @@ test/                    零依赖测试
 dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
 ```
 
-也可以写成 `github:heiqisangx-crypto/dsh-heipm`，或用具体 tag：`github:heiqisangx-crypto/dsh-heipm#v0.21.0`。
+也可以写成 `github:heiqisangx-crypto/dsh-heipm`，或用具体 tag：`github:heiqisangx-crypto/dsh-heipm#v0.22.0`。
 装完**重启 DSH**；需要某个子插件时按[配置](#配置)打开。
 
 想固定到某个版本的源码包，从 [Releases](https://github.com/heiqisangx-crypto/dsh-heipm/releases) 下载对应 tag 的 zip 解压，然后按下面的本地 link 方式接上。
@@ -172,7 +172,7 @@ dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
 npm test
 ```
 
-测试覆盖 Host 侧（收集 / 保存 / 删除 / 任务清单 / 按模块刷新与文件指纹 / 主题文件）、客户端渲染、Markdown 表格样式、过程收纳、样式设置、工作区右键菜单，以及 UI 契约与降级开关；当前 **12 套、300 条断言**。
+测试覆盖 Host 侧（收集 / 保存 / 删除 / 任务清单 / 按模块刷新与文件指纹 / 主题文件）、客户端渲染、Markdown 表格样式、过程收纳、样式设置、工作区右键菜单，以及 UI 契约与降级开关；当前 **13 套、324 条断言**。
 
 ## 兼容性
 

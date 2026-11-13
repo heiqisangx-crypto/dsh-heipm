@@ -77,7 +77,7 @@ test/                    Dependency-free tests
 ## Install
 
 Requires DSH `>=0.2.2-rc.1 <0.2.3-0` (see `engines.dsh`) and Node `^22.19 || >=24`.
-Current version: **`0.21.0`**. This project is distributed **from GitHub only; it is not published to npm** — so it does not appear in the plugin marketplace; install it by address instead.
+Current version: **`0.22.0`**. This project is distributed **from GitHub only; it is not published to npm** — so it does not appear in the plugin marketplace; install it by address instead.
 
 **One-line install (recommended)**:
 
@@ -85,7 +85,7 @@ Current version: **`0.21.0`**. This project is distributed **from GitHub only; i
 dsh plugin --profile desktop add https://github.com/heiqisangx-crypto/dsh-heipm
 ```
 
-`github:heiqisangx-crypto/dsh-heipm` works too, or pin a tag: `github:heiqisangx-crypto/dsh-heipm#v0.21.0`.
+`github:heiqisangx-crypto/dsh-heipm` works too, or pin a tag: `github:heiqisangx-crypto/dsh-heipm#v0.22.0`.
 Restart DSH afterwards, then enable any sub-plugin you want via [Configuration](#configuration).
 
 To pin an exact release, download the tag archive from [Releases](https://github.com/heiqisangx-crypto/dsh-heipm/releases), unpack it, and use the local link method below.
@@ -172,7 +172,7 @@ No runtime dependencies; tests use Node built-ins only:
 npm test
 ```
 
-Tests cover the host data layer (collect / save / delete / quest list / per-module refresh and file fingerprints / theme file), client rendering, markdown styling, the process shelf, style settings, the workspace context menu, the UI contract and kill switches; **12 suites, 300 assertions** today.
+Tests cover the host data layer (collect / save / delete / quest list / per-module refresh and file fingerprints / theme file), client rendering, markdown styling, the process shelf, style settings, the workspace context menu, the UI contract and kill switches; **13 suites, 324 assertions** today.
 
 ## Compatibility
 
