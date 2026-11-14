@@ -41,6 +41,8 @@ assert.ok(section.text.includes('quest_read') && section.text.includes('quest_wr
 assert.ok(section.text.includes('按需读取'), 'missing the on-demand reading rule')
 assert.ok(section.text.includes('running') && section.text.includes('awaiting'), 'missing the status flow rule in the always-on prompt')
 assert.ok(section.text.includes('id + 标题'), 'missing the reply format rule in the always-on prompt')
+assert.ok(section.text.includes('禁止单独出现 id'), 'the prompt must forbid bare ids')
+assert.ok(skill.content.includes('禁止单独出现 id'), 'the skill must forbid bare ids')
 
 globalThis.__heipmQuestList = undefined
 const flagged = {
