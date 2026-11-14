@@ -42,10 +42,25 @@ DSH 的 `client-modules` 加载器只接受**包根目录**下、文件名匹配
 ```
 client.procedures.js   ✅
 client.quest.js        ✅
+client.settings.js     ✅
+client.workspace.js    ✅
+client.process.js      ✅
 procedures/client.js   ❌ （目录 + 名字都不匹配）
 ```
 
 报错形如 `client-modules: invalid relative chunk request "./procedures/client.js"`。Host 子插件的入口可以放进文件夹（`procedures/index.js`），但**浏览器分块必须留在包根**。
+
+每个分块都必须在注册时声明 `chunk` 字段：
+
+```js
+window.__ModuleLoader__.load({
+  id: 'dsh-heipm',
+  chunk: 'client.settings.js',   // 缺了会被当成第二个入口
+  factory(require) { … },
+})
+```
+
+漏写 `chunk` 的控制台报错：`duplicate factory registration for "dsh-heipm"` + `… loaded without registering …`，对应功能区块直接空白。
 
 ## 一键关闭 UI 特性
 

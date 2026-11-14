@@ -53,9 +53,12 @@ DSH 的能力大多活在会话里，会话一关就散了。这个插件把它�
 
 ```text
 index.js                 Host 包入口：面板 API、主题文件、子插件开关查询
-client.js                浏览器主入口：UI 特性、过程收纳、样式设置页
+client.js                浏览器主入口：面板页面与共享工具
 client.procedures.js     经验流程客户端分块（必须留在包根）
 client.quest.js          任务清单客户端分块（必须留在包根）
+client.settings.js       样式设置页组件分块（必须留在包根）
+client.workspace.js      工作区右键菜单分块（必须留在包根）
+client.process.js        过程收纳（图标条 + 抽屉）分块（必须留在包根）
 procedures/              经验流程 Host 子插件：index.js / prompt.md / tools.js
 quest-list/              任务清单 Host 子插件：index.js / prompt.md / SKILL.md
 markdown/                Markdown 子插件：index.js / icon.png
