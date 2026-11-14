@@ -71,6 +71,7 @@
     "client.js",
     "client.procedures.js",
     "client.quest.js",
+    "client.settings.js",
     "procedures/index.js",
     "procedures/tools.js",
     "procedures/prompt.md",
