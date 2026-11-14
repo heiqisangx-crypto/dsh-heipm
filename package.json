@@ -33,11 +33,11 @@
   ],
   "engines": {
     "node": "^22.19 || >=24",
-    "dsh": ">=0.2.2-rc.1 <0.2.3-0"
+    "dsh": ">=0.2.2-rc.1 <0.3.0-0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.1.0",
-    "@deepseek-ai/dsh": ">=0.2.2-rc.1 <0.2.3-0"
+    "@deepseek-ai/dsh": ">=0.2.2-rc.1 <0.3.0-0"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
@@ -69,7 +69,6 @@
     "index.js",
     "quest-store.js",
     "quest-tools.js",
-    "scripts/*.mjs",
     "client.js",
     "client.procedures.js",
     "client.quest.js",

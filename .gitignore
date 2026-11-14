@@ -4,5 +4,7 @@ node_modules/
 Thumbs.db
 .env
 .env.*
+# 本地任务库与项目内 .dsh 数据
+.dsh/
 # 迁移脚本导出的本地数据快照，不含代码
 quest-import-*.json

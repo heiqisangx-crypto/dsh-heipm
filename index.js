@@ -1260,7 +1260,7 @@ function toPanelTree(tree) {
 }
 
 /**
- * 任务清单读写：只认项目下的 `.dsh/dsh-heipm/任务清单.md`，读取返回解析后的树，写入只改一行状态标记。
+ * 任务清单读写：存在项目下的 `.dsh/dsh-heipm/quest.db`（SQLite），读取返回整棵树，写入按 itemId 改字段。
  */
 async function readQuestList(ctx, payload) {
   const fs = ctx.get('fs')
