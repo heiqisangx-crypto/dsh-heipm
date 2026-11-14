@@ -10,7 +10,7 @@ const READ_SCHEMA = {
   properties: {
     projectPath: {
       type: 'string',
-      description: 'Absolute path of the project whose task list to read; defaults to the session workspace.',
+      description: 'Absolute path of the project whose task list to read; defaults to the current session working directory.',
     },
   },
   additionalProperties: false,
@@ -26,7 +26,7 @@ const WRITE_SCHEMA = {
     },
     projectPath: {
       type: 'string',
-      description: 'Absolute path of the project; defaults to the session workspace.',
+      description: 'Absolute path of the project; defaults to the current session working directory.',
     },
     requirementId: {
       type: 'string',
@@ -102,8 +102,8 @@ export function readQuestTool(getDb) {
       + 'Use it before writing so you have the ids.',
     parameters: READ_SCHEMA,
     output: { schema: READ_OUTPUT, render: (args, value) => [textResult(value)] },
-    async execute(args) {
-      const db = getDb(args.projectPath)
+    async execute(args, exec) {
+      const db = await getDb(args.projectPath, exec)
       return describeTree(readTree(db))
     },
   }
@@ -118,9 +118,9 @@ export function writeQuestTool(getDb) {
       + 'Tasks with subtasks derive their state from the leaves and cannot be set directly.',
     parameters: WRITE_SCHEMA,
     output: { schema: WRITE_OUTPUT, render: (args, value) => [textResult(value)] },
-    async execute(args) {
+    async execute(args, exec) {
       const op = String(args.op || '')
-      const db = getDb(args.projectPath)
+      const db = await getDb(args.projectPath, exec)
       if (op === 'add_req') {
         if (!args.title) throw new Error('add_req needs a title')
         return { ok: true, result: addRequirement(db, args.title) }

@@ -28,6 +28,13 @@ await ok('the write tool is named quest_write and lists every op', () => {
   assert.deepEqual(ops, ['add_req', 'add_item', 'set_state', 'set_evidence', 'remove'])
 })
 
+await ok('the execution context reaches getDb', async () => {
+  const seen = []
+  const tool = readQuestTool((projectPath, exec) => { seen.push([projectPath, exec]); return db })
+  await tool.execute({}, { agent: 'session-1' })
+  assert.deepEqual(seen, [[undefined, { agent: 'session-1' }]])
+})
+
 await ok('adding a requirement returns its id', async () => {
   const out = await write.execute({ op: 'add_req', title: '登录页' })
   assert.equal(out.ok, true)

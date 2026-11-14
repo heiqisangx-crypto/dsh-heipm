@@ -68,12 +68,9 @@ export function apply(ctx) {
  * tools 服务必须用 ctx.inject 取子作用域，主 ctx 上没有这个服务。
  */
 function mountQuestTools(ctx) {
-  const getDb = projectPath => {
-    const base = projectPath
-      ? knownProjectPath(ctx, projectPath)
-      : (ctx.get('workspaceRegistry')?.list?.()[0]?.path || process.cwd())
-    return questDb(ctx, base)
-  }
+  const getDb = async (projectPath, exec) => questDb(ctx, projectPath
+    ? knownProjectPath(ctx, projectPath)
+    : await sessionProject(ctx, exec))
   ctx.inject(['tools'], toolsCtx => {
     let dispose = null
     const sync = () => {
@@ -128,6 +125,7 @@ export const __test = {
   renameQuestNode,
   detectLegacyQuest,
   questListPath,
+  sessionProject,
   normalizeTheme,
   readTheme,
   writeTheme,
@@ -467,6 +465,30 @@ function registryWorkspaces(ctx) {
   } catch {
     return []
   }
+}
+
+/**
+ * 任务工具不带 projectPath 时的项目：取本会话的工作目录，再定位包含它的已注册工作区。
+ * 拿不到就报错 —— 绝不回落到注册表里的第一个项目。
+ */
+async function sessionProject(ctx, exec) {
+  const directories = ctx.get('workingDirectory')
+  const agent = exec && exec.agent
+  let dir = null
+  if (directories && typeof directories.ensure === 'function' && agent) {
+    dir = await directories.ensure(agent, exec.signal)
+  }
+  if (typeof dir === 'string' && dir) {
+    const key = pathKey(dir)
+    const list = registryWorkspaces(ctx)
+    const exact = list.find(space => typeof space.path === 'string' && pathKey(space.path) === key)
+    if (exact) return exact.path
+    const parent = list
+      .filter(space => typeof space.path === 'string' && key.startsWith(pathKey(space.path) + path.sep))
+      .sort((a, b) => b.path.length - a.path.length)[0]
+    if (parent) return parent.path
+  }
+  throw new Error('quest: the current session is not inside a registered workspace; pass projectPath explicitly')
 }
 
 async function collect(ctx, requestedSessionId) {

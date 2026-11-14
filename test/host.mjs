@@ -423,6 +423,32 @@ try {
   await __test.setQuestState(ctx, { projectPath: workspace, itemId: questDoc.items[0].children[0].id, state: 'done', version: questDoc.version })
   const stampAfterQuest = (await __test.stampScope(ctx, { projectPath: workspace })).stamps
   check('editing the task list changes the quest stamp', stampAfterQuest.quest !== stampAfterCard.quest)
+
+  // 任务工具的默认项目应当跟随会话工作目录，而不是注册表里的第一个项目。
+  const questCtx = (dir, spaces) => ({
+    get: name => name === 'workingDirectory' ? { ensure: async () => dir }
+      : name === 'workspaceRegistry' ? { list: () => spaces } : undefined,
+  })
+  const sameDir = await __test.sessionProject(questCtx(workspace, [{ path: workspace }]), { agent: {} })
+  check('the default project follows the session directory', sameDir === workspace)
+  const nestedProject = await __test.sessionProject(
+    questCtx(path.join(workspace, 'procedures'), [{ path: path.join(workspace, '..') }, { path: workspace }]),
+    { agent: {} })
+  check('a nested directory maps to its owning workspace', nestedProject === workspace, nestedProject)
+  let foreign = false
+  try {
+    await __test.sessionProject(questCtx(path.join(workspace, '..', 'elsewhere'), [{ path: workspace }]), { agent: {} })
+  } catch (error) {
+    foreign = /registered workspace/.test(String(error && error.message))
+  }
+  check('an unregistered directory is refused instead of falling back', foreign)
+  let noAgent = false
+  try {
+    await __test.sessionProject(questCtx(workspace, [{ path: workspace }]), {})
+  } catch (error) {
+    noAgent = /registered workspace/.test(String(error && error.message))
+  }
+  check('a missing agent is refused', noAgent)
 } finally {
   await rm(workspace, { recursive: true, force: true }).catch(() => {})
 }
