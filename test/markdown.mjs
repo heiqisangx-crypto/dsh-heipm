@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import { name } from '../markdown/index.js'
-import STYLES from '../markdown/styles.js'
 
 const ENTRY_SOURCE = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
 const MARKDOWN_CSS = /const MARKDOWN_CSS = ("(?:[^"\\]|\\.)*")/.exec(ENTRY_SOURCE)[1]
@@ -29,7 +28,6 @@ for (const rule of ['[class*="_tableScroll"]', '[class*="_tableFill"]', 'hm-tabl
 }
 /* 展开靠 class、外壳靠 _tableScroll 前缀、按钮不被 style.display 隐藏、apply 会装样式：
    这几条已由下面的点击 / 折叠 / 短表 / 启动断言从行为上覆盖，不再查源码。 */
-assert.equal(STYLES, JSON.parse(MARKDOWN_CSS), 'styles.js and the inlined copy must stay identical')
 assert.ok(JSON.parse(MARKDOWN_CSS).includes('[class*="_tableScroll"] > table'), 'the inlined stylesheet ships the table rules')
 
 function makeTree() {

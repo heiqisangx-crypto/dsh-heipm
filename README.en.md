@@ -58,7 +58,7 @@ client.procedures.js     Procedures client chunk (must stay at the package root)
 client.quest.js          Quest-list client chunk (must stay at the package root)
 procedures/              Procedures host sub-plugin: index.js / prompt.md / tools.js
 quest-list/              Quest-list host sub-plugin: index.js / prompt.md / SKILL.md
-markdown/                Markdown sub-plugin: index.js / styles.js / icon.png
+markdown/                Markdown sub-plugin: index.js / icon.png
 templates/               Built-in card templates and tools
 docs/HOST_CONTRACT.md    DSH dependency contract, kill switch and upgrade checklist
 test/                    Dependency-free tests

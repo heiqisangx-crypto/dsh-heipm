@@ -58,7 +58,7 @@ client.procedures.js     经验流程客户端分块（必须留在包根）
 client.quest.js          任务清单客户端分块（必须留在包根）
 procedures/              经验流程 Host 子插件：index.js / prompt.md / tools.js
 quest-list/              任务清单 Host 子插件：index.js / prompt.md / SKILL.md
-markdown/                Markdown 子插件：index.js / styles.js / icon.png
+markdown/                Markdown 子插件：index.js / icon.png
 templates/               内置知识卡模板与工具
 docs/HOST_CONTRACT.md    DSH 依赖契约、降级开关与升级 checklist
 test/                    零依赖测试

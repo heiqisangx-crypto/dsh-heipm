@@ -5,11 +5,12 @@ import vm from 'node:vm'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import STYLES from '../markdown/styles.js'
 
 const { __test: host } = await import('../index.js')
 
 const SOURCE = fs.readFileSync(new URL('../client.js', import.meta.url), 'utf8')
+// 入口内联的样式表是唯一来源，测试直接从源码里取。
+const STYLES = JSON.parse(/const MARKDOWN_CSS = ("(?:[^"\\]|\\.)*")/.exec(SOURCE)[1])
 
 let factory = null
 const sandbox = { console, setTimeout, clearTimeout, setInterval, clearInterval }
