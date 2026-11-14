@@ -10,6 +10,7 @@ const { __test: host } = await import('../index.js')
 
 const SOURCE = fs.readFileSync(new URL('../client.js', import.meta.url), 'utf8')
 const SETTINGS_SOURCE = fs.readFileSync(new URL('../client.settings.js', import.meta.url), 'utf8')
+const PROCESS_SOURCE = fs.readFileSync(new URL('../client.process.js', import.meta.url), 'utf8')
 // 入口内联的样式表是唯一来源，测试直接从源码里取。
 const STYLES = JSON.parse(/const MARKDOWN_CSS = ("(?:[^"\\]|\\.)*")/.exec(SOURCE)[1])
 
@@ -87,8 +88,8 @@ truthy('cleared colours are omitted', !themed.slice(0, themed.indexOf('}')).incl
 truthy('markdown table head uses the card colour', STYLES.includes('--hm-table-head: var(--hm-card, #262a31);'))
 truthy('markdown table hover uses the accent', STYLES.includes('--hm-table-hover: var(--hm-accent, #ff9f43);'))
 truthy('markdown table radius uses the shared radius', STYLES.includes('border-radius: var(--hm-radius, 10px);'))
-truthy('process shelf drawer uses the panel colour', SOURCE.includes('background:var(--hm-panel, #1b1f26)'))
-truthy('process shelf icons use the accent', SOURCE.includes('color:var(--hm-accent, #ff9f43)'))
+truthy('process shelf drawer uses the panel colour', PROCESS_SOURCE.includes('background:var(--hm-panel, #1b1f26)'))
+truthy('process shelf icons use the accent', PROCESS_SOURCE.includes('color:var(--hm-accent, #ff9f43)'))
 truthy('workspace menu accent follows the theme', SOURCE.includes('--pm-ctx-accent: var(--hm-accent, #d9730d);'))
 truthy('the selected-row text colour derives from the accent', SOURCE.includes('--pm-accent-strong: color-mix(in srgb, var(--hm-accent, #d9730d) 78%, #000);'))
 truthy('every colour row explains its scope', SOURCE.includes("'style.accentHint': '影响：选中行、按钮、hover、表格悬停、过程图标'"))

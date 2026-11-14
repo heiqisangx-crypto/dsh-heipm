@@ -73,6 +73,7 @@
     "client.quest.js",
     "client.settings.js",
     "client.workspace.js",
+    "client.process.js",
     "procedures/index.js",
     "procedures/tools.js",
     "procedures/prompt.md",
