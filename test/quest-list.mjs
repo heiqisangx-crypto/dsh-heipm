@@ -23,7 +23,7 @@ assert.equal(skill.source, 'runtime')
 assert.equal(skill.resourceBase.kind, 'directory')
 assert.ok(skill.resourceBase.path.endsWith('quest-list'))
 assert.ok(!skill.content.startsWith('---'), 'front matter must be stripped from the body')
-for (const phrase of ['# quest-list', '触发', 'quest_read', 'quest_write', 'awaiting', 'done', '三步状态流转']) {
+for (const phrase of ['# quest-list', '触发', 'quest_read', 'quest_write', 'awaiting', 'done', '三步状态流转', 'id + 标题']) {
   assert.ok(skill.content.includes(phrase), `missing phrase: ${phrase}`)
 }
 assert.ok(skill.content.includes('.dsh/dsh-heipm/quest.db'), 'body must name the SQLite store')
@@ -40,6 +40,7 @@ assert.ok(section.text.includes('skill `quest-list`'), 'missing skill pointer')
 assert.ok(section.text.includes('quest_read') && section.text.includes('quest_write'), 'missing the quest tools in the prompt section')
 assert.ok(section.text.includes('按需读取'), 'missing the on-demand reading rule')
 assert.ok(section.text.includes('running') && section.text.includes('awaiting'), 'missing the status flow rule in the always-on prompt')
+assert.ok(section.text.includes('id + 标题'), 'missing the reply format rule in the always-on prompt')
 
 globalThis.__heipmQuestList = undefined
 const flagged = {
