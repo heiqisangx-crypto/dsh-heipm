@@ -20,17 +20,15 @@ assert.ok(!PKG.files.some(file => file.endsWith('.css')), 'the host only serves 
 assert.ok(!PKG.files.some(file => file.includes('client.markdown')), 'no markdown chunk is left behind')
 assert.ok(ICON.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), 'the icon must be a real PNG file')
 
+/* 组装契约：这几条行为测试覆盖不到（分块方式 / 结构守卫），只能查源码。 */
 assert.ok(ENTRY_SOURCE.includes("require.async('./client.procedures.js')"), 'the procedures chunk stays lazy')
-assert.ok(!ENTRY_SOURCE.includes('client.markdown.js'), 'the markdown styling must live in the entry, not a chunk')
+assert.ok(ENTRY_SOURCE.includes("parent.tagName === 'TABLE'"), 'a table that is its own wrapper must be skipped')
 const INLINE_CSS = JSON.parse(MARKDOWN_CSS)
 for (const rule of ['[class*="_tableScroll"]', '[class*="_tableFill"]', 'hm-table-toggle', 'cv-table-collapsed']) {
   assert.ok(INLINE_CSS.includes(rule), 'the entry must carry the table stylesheet: ' + rule)
 }
-assert.ok(!ENTRY_SOURCE.includes(':checked ~'), 'expansion is driven by a class, not a hidden checkbox')
-assert.ok(ENTRY_SOURCE.includes("name.indexOf('_tableScroll') === 0"), 'the host wrapper is recognised by its hashed class prefix')
-assert.ok(!ENTRY_SOURCE.includes('toggle.style.display'), 'the toggle is never hidden by a height check')
-assert.ok(ENTRY_SOURCE.includes("parent.tagName === 'TABLE'"), 'a table that is its own wrapper must be skipped')
-assert.ok(ENTRY_SOURCE.includes('ctx.effect(startMarkdownStyling'), 'apply must start the styling')
+/* 展开靠 class、外壳靠 _tableScroll 前缀、按钮不被 style.display 隐藏、apply 会装样式：
+   这几条已由下面的点击 / 折叠 / 短表 / 启动断言从行为上覆盖，不再查源码。 */
 assert.equal(STYLES, JSON.parse(MARKDOWN_CSS), 'styles.js and the inlined copy must stay identical')
 assert.ok(JSON.parse(MARKDOWN_CSS).includes('[class*="_tableScroll"] > table'), 'the inlined stylesheet ships the table rules')
 
@@ -140,12 +138,17 @@ function loadEntry(tree, observers, switchState = { enabled: true }) {
     observe(target) { this.target = target; this.targets.push(target) }
     disconnect() { this.disconnected = true }
   }
-  const fetch = async () => {
+  const requests = []
+  const intervals = []
+  const fetch = async (url, init) => {
+    requests.push({ url, init })
     if (switchState.broken) throw new Error('switch endpoint unavailable')
     return { ok: true, status: 200, json: async () => ({ ok: true, enabled: switchState.enabled }) }
   }
   tree.doc.baseURI = 'http://127.0.0.1:1/'
-  const sandbox = { console, setTimeout, clearTimeout, setInterval: () => 0, clearInterval: () => {}, queueMicrotask, MutationObserver: Observer, document: tree.doc, window: {}, fetch, URL }
+  const sandbox = { console, setTimeout, clearTimeout, setInterval: (fn, ms) => { intervals.push({ fn, ms }); return 0 }, clearInterval: () => {}, queueMicrotask, MutationObserver: Observer, document: tree.doc, window: {}, fetch, URL }
+  tree.requests = requests
+  tree.intervals = intervals
   sandbox.window = sandbox
   sandbox.window.__ModuleLoader__ = { load: config => { registration = config } }
   vm.createContext(sandbox)
@@ -265,8 +268,16 @@ offPlugin.apply({
 await flush()
 assert.equal(offTree.head.children.filter(node => node.getAttribute('data-plugin-css') === 'heipm:markdown').length, 0, 'a disabled sub-plugin must not install the stylesheet')
 assert.equal(offTree.body.children.filter(offTree.hasMark).length, 0, 'a disabled sub-plugin must not add toggles')
-assert.ok(ENTRY_SOURCE.includes('setInterval(tick, 2000)'), 'the entry must re-check the switch so disabling takes effect without a restart')
-assert.ok(ENTRY_SOURCE.includes("api({ action: 'markdown' })"), 'the switch is read from the host route')
+const tick = tree.intervals.find(entry => entry.ms === 2000)
+assert.ok(tick, 'the entry must re-check the switch every 2s so disabling takes effect without a restart')
+const requestsBeforeTick = tree.requests.length
+await tick.fn()
+await flush()
+assert.ok(tree.requests.length > requestsBeforeTick, 'a tick must ask the host for the switch again')
+const switchCall = tree.requests.find(entry => {
+  try { return JSON.parse(entry.init.body).action === 'markdown' } catch { return false }
+})
+assert.ok(switchCall, 'the switch must be read from the host markdown action')
 
 console.log('ok   the switch is honoured without a restart')
 
