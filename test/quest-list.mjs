@@ -17,11 +17,13 @@ const skill = registered[0]
 assert.equal(skill.name, 'quest-list')
 assert.ok(skill.description.includes('任务清单'), skill.description)
 assert.ok(skill.whenToUse, 'missing whenToUse')
+assert.ok(skill.whenToUse.includes('开始'), 'whenToUse must cover starting a task')
+assert.ok(skill.whenToUse.includes('验收'), 'whenToUse must cover acceptance')
 assert.equal(skill.source, 'runtime')
 assert.equal(skill.resourceBase.kind, 'directory')
 assert.ok(skill.resourceBase.path.endsWith('quest-list'))
 assert.ok(!skill.content.startsWith('---'), 'front matter must be stripped from the body')
-for (const phrase of ['# quest-list', '触发', 'quest_read', 'quest_write', 'awaiting', 'done']) {
+for (const phrase of ['# quest-list', '触发', 'quest_read', 'quest_write', 'awaiting', 'done', '三步状态流转']) {
   assert.ok(skill.content.includes(phrase), `missing phrase: ${phrase}`)
 }
 assert.ok(skill.content.includes('.dsh/dsh-heipm/quest.db'), 'body must name the SQLite store')
@@ -37,6 +39,7 @@ assert.ok(section.text.includes('确定为新需求'), 'missing the new-requirem
 assert.ok(section.text.includes('skill `quest-list`'), 'missing skill pointer')
 assert.ok(section.text.includes('quest_read') && section.text.includes('quest_write'), 'missing the quest tools in the prompt section')
 assert.ok(section.text.includes('按需读取'), 'missing the on-demand reading rule')
+assert.ok(section.text.includes('running') && section.text.includes('awaiting'), 'missing the status flow rule in the always-on prompt')
 
 globalThis.__heipmQuestList = undefined
 const flagged = {

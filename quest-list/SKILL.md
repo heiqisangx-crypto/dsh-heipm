@@ -1,13 +1,19 @@
 ---
 name: quest-list
-description: 仅在用户消息被明确认为产生了新需求时使用。用 quest_read / quest_write 两个工具维护任务清单：记录需求、拆分为可执行子任务，并管理 open、running、awaiting、done 四种状态。
-whenToUse: 用户消息包含关键词「新需求」时。
+description: 维护任务清单：开始做某条时标 running、做完写证据标 awaiting、用户验收后才标 done；用户提出「新需求」时也用它拆任务。
+whenToUse: 用户要开始或继续做任务清单里的某一条、说某条做完了、给出验收结论，或提出「新需求」时。
 ---
 
 # quest-list（任务清单）
 
-> **触发**：用户消息出现「新需求」时。
+> **触发**：开始/继续做某条、报告做完、给出验收结论、提出「新需求」时。
 > **存储**：任务清单存在项目下的 `.dsh/dsh-heipm/quest.db`（SQLite），**不要再读写任何 Markdown 清单文件**。
+
+## 三步状态流转（必须，不许跳步）
+
+1. **开工前**：`set_state` → `running`。还没动手就留 `open` 是错的。
+2. **做完**：先 `set_evidence` 写证据，再 `set_state` → `awaiting`。
+3. **用户验收后**：才 `set_state` → `done`。用户没验收就自行置 `done` 等于伪造证据。
 
 ## 两个工具
 
