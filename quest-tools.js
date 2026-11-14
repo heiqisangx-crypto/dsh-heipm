@@ -36,6 +36,10 @@ const WRITE_SCHEMA = {
       type: 'string',
       description: 'Target task id, required by set_state, set_evidence and remove.',
     },
+    parentId: {
+      type: 'string',
+      description: 'Parent task id for add_item. Omit to add a top-level task; nest as deep as needed.',
+    },
     title: {
       type: 'string',
       description: 'Plain title text. Never include the sequence number or a state marker.',
@@ -76,6 +80,18 @@ function textResult(value) {
 }
 
 function describeTree(tree) {
+  // 子任务可能有多层：递归带上 children，空数组不输出保持体积。
+  const toItem = item => {
+    const out = {
+      id: item.id,
+      title: item.title,
+      state: item.state,
+      evidence: item.evidence,
+      progress: item.nested ? `${item.doneLeaves}/${item.leaves}` : null,
+    }
+    if (item.children && item.children.length) out.children = item.children.map(toItem)
+    return out
+  }
   return {
     revision: tree.revision,
     counts: tree.counts,
@@ -84,13 +100,7 @@ function describeTree(tree) {
       seq: req.seq,
       title: req.title,
       state: req.state,
-      items: req.items.map(item => ({
-        id: item.id,
-        title: item.title,
-        state: item.state,
-        evidence: item.evidence,
-        progress: item.nested ? `${item.doneLeaves}/${item.leaves}` : null,
-      })),
+      items: req.items.map(toItem),
     })),
   }
 }
@@ -128,7 +138,7 @@ export function writeQuestTool(getDb) {
       if (op === 'add_item') {
         if (!args.requirementId) throw new Error('add_item needs a requirementId')
         if (!args.title) throw new Error('add_item needs a title')
-        return { ok: true, result: addItem(db, args.requirementId, args.title, args.evidence) }
+        return { ok: true, result: addItem(db, args.requirementId, args.title, args.evidence, args.parentId) }
       }
       if (op === 'set_state') {
         if (!args.itemId) throw new Error('set_state needs an itemId')

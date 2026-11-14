@@ -114,6 +114,18 @@ await ok('registering mounts both tools and dispose unmounts them', () => {
   assert.equal(offs.length, 0 + 2)
 })
 
+await ok('add_item nests under a parent task', async () => {
+  const req = await write.execute({ op: 'add_req', title: '嵌套示例' })
+  const parent = await write.execute({ op: 'add_item', requirementId: req.result.id, title: '父步骤' })
+  const child = await write.execute({ op: 'add_item', requirementId: req.result.id, title: '子步骤', parentId: parent.result.id })
+  assert.equal(child.result.parentId, parent.result.id)
+  const tree = await read.execute({})
+  const found = tree.requirements.find(r => r.id === req.result.id)
+  assert.equal(found.items.length, 1, 'the child must not appear at the top level')
+  assert.equal(found.items[0].children[0].title, '子步骤')
+  await assert.rejects(() => write.execute({ op: 'set_state', itemId: parent.result.id, state: 'done' }), /subtasks/)
+})
+
 db.close()
 await rm(dir, { recursive: true, force: true })
 console.log(`quest-tools: ${passed} ok`)

@@ -23,7 +23,7 @@ assert.equal(skill.source, 'runtime')
 assert.equal(skill.resourceBase.kind, 'directory')
 assert.ok(skill.resourceBase.path.endsWith('quest-list'))
 assert.ok(!skill.content.startsWith('---'), 'front matter must be stripped from the body')
-for (const phrase of ['# quest-list', '触发', 'quest_read', 'quest_write', 'awaiting', 'done', '三步状态流转', 'id + 标题']) {
+for (const phrase of ['# quest-list', '触发', 'quest_read', 'quest_write', 'awaiting', 'done', '三步状态流转', 'id + 标题', '复杂任务拆分', 'parentId']) {
   assert.ok(skill.content.includes(phrase), `missing phrase: ${phrase}`)
 }
 assert.ok(skill.content.includes('.dsh/dsh-heipm/quest.db'), 'body must name the SQLite store')
