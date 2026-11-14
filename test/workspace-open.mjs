@@ -153,7 +153,13 @@ const sandbox = {
 }
 sandbox.window.document = documentNode
 let factory = null
-sandbox.window.__ModuleLoader__ = { load: config => { factory = config.factory } }
+const chunkFactories = {}
+sandbox.window.__ModuleLoader__ = {
+  load: config => {
+    if (config.chunk) chunkFactories[config.chunk] = config.factory
+    else factory = config.factory
+  },
+}
 vm.createContext(sandbox)
 vm.runInContext(SOURCE, sandbox, { filename: 'client.js' })
 
@@ -165,10 +171,26 @@ const React = {
   useRef: value => ({ current: value }),
   useState: value => [value, () => {}],
 }
-const mod = factory(id => {
+const chunkSources = {
+  './client.workspace.js': fs.readFileSync(new URL('../client.workspace.js', import.meta.url), 'utf8'),
+  './client.settings.js': fs.readFileSync(new URL('../client.settings.js', import.meta.url), 'utf8'),
+}
+function loadChunk(spec) {
+  const file = spec.replace('./', '')
+  if (!chunkFactories[file]) vm.runInContext(chunkSources[spec], sandbox, { filename: file })
+  return chunkFactories[file](id => {
+    if (id === 'react') return React
+    throw new Error('unexpected require: ' + id)
+  })
+}
+const requireStub = id => {
   if (id === 'react') return React
   throw new Error('unexpected require: ' + id)
-})
+}
+requireStub.async = async spec => loadChunk(spec)
+const mod = factory(requireStub)
+await mod.__test.workspaceMenuReady
+await new Promise(resolve => setTimeout(resolve, 0))
 const install = mod.__test.installWorkspaceContextMenu
 const t = key => key
 
@@ -188,6 +210,7 @@ const workspaces = {
 }
 
 const dispose = install(workspaces, t)
+await new Promise(resolve => setTimeout(resolve, 0))
 
 const row = new Node('div')
 row.setAttribute('data-row-key', 'workspace:p1')
